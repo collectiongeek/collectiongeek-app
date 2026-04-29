@@ -1,0 +1,8 @@
+# Default reviewer for everything
+*                       @F-U-R-Y
+
+# Uncomment and adjust when team members join:
+# /backend/             @your-org/backend-team
+# /frontend/            @your-org/frontend-team
+# /convex/              @your-org/backend-team
+# /.github/             @your-org/devops
