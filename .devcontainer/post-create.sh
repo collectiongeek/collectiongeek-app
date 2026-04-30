@@ -24,4 +24,7 @@ fi
 echo "==> Installing Convex CLI..."
 npm install -g convex
 
+echo "==> Installing Helm..."
+curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
 echo "==> Done! Dev environment is ready."
