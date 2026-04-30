@@ -1,0 +1,84 @@
+name: Promote to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      services:
+        description: "Which service(s) to promote"
+        required: true
+        type: choice
+        options:
+          - backend
+          - frontend
+          - both
+      image-tag:
+        description: "Image tag to promote (commit SHA — check GHCR or test deploy)"
+        required: true
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate image tag format
+        run: |
+          TAG="${{ github.event.inputs.image-tag }}"
+          if [[ ! "$TAG" =~ ^[a-f0-9]{7,40}$ ]]; then
+            echo "::error::Image tag must be a commit SHA (7-40 hex characters). Got: $TAG"
+            exit 1
+          fi
+
+      - name: Verify image(s) exist in GHCR
+        run: |
+          SERVICES="${{ github.event.inputs.services }}"
+          TAG="${{ github.event.inputs.image-tag }}"
+          OWNER="${{ github.repository_owner }}"
+
+          check_image() {
+            local image="ghcr.io/${OWNER}/$1:${TAG}"
+            echo "Checking for ${image}..."
+            if ! docker manifest inspect "${image}" > /dev/null 2>&1; then
+              echo "::error::Image not found: ${image}"
+              exit 1
+            fi
+            echo "✅ Found ${image}"
+          }
+
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+          if [[ "$SERVICES" == "backend" || "$SERVICES" == "both" ]]; then
+            check_image "backend"
+          fi
+          if [[ "$SERVICES" == "frontend" || "$SERVICES" == "both" ]]; then
+            check_image "frontend"
+          fi
+
+      # Phase 4 will add the gitops-repo update step here.
+      # For now, this is a placeholder.
+      - name: Placeholder — update gitops-repo
+        run: |
+          echo "🚧 GitOps update will be implemented in Phase 4"
+          echo "Services: ${{ github.event.inputs.services }}"
+          echo "Image tag: ${{ github.event.inputs.image-tag }}"
+
+      - name: Notify Slack
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "🚀 Production Promotion",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "🚀 *Production Promotion Triggered*\n*Services:* ${{ github.event.inputs.services }}\n*Image Tag:* `${{ github.event.inputs.image-tag }}`\n*Triggered by:* ${{ github.actor }}\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>"
+                  }
+                }
+              ]
+            }

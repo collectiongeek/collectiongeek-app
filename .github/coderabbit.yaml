@@ -1,0 +1,44 @@
+language: en-US
+
+reviews:
+  # Auto-review every PR
+  auto_review:
+    enabled: true
+    # Skip drafts — only review when PR is ready
+    drafts: false
+    # Review on every push to the PR, not just the initial open
+    base_branches:
+      - main
+
+  # High-level summary at the top of each review
+  request_changes_workflow: false
+  high_level_summary: true
+  high_level_summary_placeholder: "@coderabbitai summary"
+
+  # Review hints — tell CodeRabbit about your stack
+  path_instructions:
+    - path: "backend/**"
+      instructions: |
+        This is a Go backend using the Chi router. Review for:
+        - Proper error handling (no swallowed errors)
+        - Context propagation
+        - Correct HTTP status codes
+        - Thread safety in shared state
+        - Middleware ordering concerns
+    - path: "frontend/**"
+      instructions: |
+        This is a React frontend using Vite and TypeScript. Review for:
+        - Type safety (avoid `any`)
+        - Hook dependency arrays
+        - Proper cleanup in useEffect
+        - Accessibility (a11y) concerns
+        - Bundle size impact of new imports
+    - path: "convex/**"
+      instructions: |
+        This is the Convex data layer. Review for:
+        - Schema validation
+        - Query and mutation correctness
+        - Index usage for performance
+
+chat:
+  auto_reply: true

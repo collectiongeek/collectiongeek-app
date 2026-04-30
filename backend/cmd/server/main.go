@@ -37,14 +37,18 @@ func main() {
 	// Health check — used by Kubernetes probes
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+		if err := json.NewEncoder(w).Encode(map[string]string{"status": "ok"}); err != nil {
+			http.Error(w, "encoding error", http.StatusInternalServerError)
+		}
 	})
 
 	// API routes (placeholder)
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]string{"message": "Hello from the API"})
+			if err := json.NewEncoder(w).Encode(map[string]string{"message": "Hello from the API"}); err != nil {
+				http.Error(w, "encoding error", http.StatusInternalServerError)
+			}
 		})
 	})
 
@@ -56,3 +60,4 @@ func main() {
 	log.Printf("Backend starting on :%s", port)
 	log.Fatal(http.ListenAndServe(":"+port, r))
 }
+
