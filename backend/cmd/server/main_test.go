@@ -12,7 +12,9 @@ func TestHealthCheck(t *testing.T) {
 	r := chi.NewRouter()
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"ok"}`))
+		if _, err := w.Write([]byte(`{"status":"ok"}`)); err != nil {
+			t.Errorf("failed to write response: %v", err)
+		}
 	})
 
 	req := httptest.NewRequest("GET", "/healthz", nil)
