@@ -8,6 +8,7 @@ env:
   REGISTRY: ghcr.io
   BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/backend
   FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/frontend
+  GITOPS_REPO: collectiongeek/collectiongeek-gitops
 
 jobs:
   # ---------------------------------------------------------
@@ -44,9 +45,13 @@ jobs:
       contents: read
       packages: write
     outputs:
-      image-tag: ${{ steps.meta.outputs.version }}
+      image-tag: ${{ steps.short-sha.outputs.sha }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Get short SHA
+        id: short-sha
+        run: echo "sha=$(echo ${{ github.sha }} | cut -c1-7)" >> "$GITHUB_OUTPUT"
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -101,9 +106,13 @@ jobs:
       contents: read
       packages: write
     outputs:
-      image-tag: ${{ steps.meta.outputs.version }}
+      image-tag: ${{ steps.short-sha.outputs.sha }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Get short SHA
+        id: short-sha
+        run: echo "sha=$(echo ${{ github.sha }} | cut -c1-7)" >> "$GITHUB_OUTPUT"
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -152,24 +161,88 @@ jobs:
             VITE_API_BASE_URL=${{ vars.VITE_API_BASE_URL || 'http://localhost:8080' }}
 
   # ---------------------------------------------------------
+  # Update GitOps repo with new image tag(s) for test
+  # ---------------------------------------------------------
+  update-gitops:
+    needs: [changes, backend, frontend]
+    if: always() && (needs.backend.result == 'success' || needs.frontend.result == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout gitops-repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.GITOPS_REPO }}
+          token: ${{ secrets.GITOPS_REPO_PAT }}
+          path: gitops-repo
+
+      - name: Update backend image tag
+        if: needs.backend.result == 'success'
+        run: |
+          TAG="${{ needs.backend.outputs.image-tag }}"
+          FILE="gitops-repo/charts/backend/values-test.yaml"
+          echo "Updating backend test image tag to: ${TAG}"
+          sed -i "s|^  tag:.*|  tag: ${TAG}|" "${FILE}"
+          echo "Updated ${FILE}:"
+          grep "tag:" "${FILE}"
+
+      - name: Update frontend image tag
+        if: needs.frontend.result == 'success'
+        run: |
+          TAG="${{ needs.frontend.outputs.image-tag }}"
+          FILE="gitops-repo/charts/frontend/values-test.yaml"
+          echo "Updating frontend test image tag to: ${TAG}"
+          sed -i "s|^  tag:.*|  tag: ${TAG}|" "${FILE}"
+          echo "Updated ${FILE}:"
+          grep "tag:" "${FILE}"
+
+      - name: Commit and push
+        run: |
+          cd gitops-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+
+          # Build a descriptive commit message
+          SERVICES=""
+          if [[ "${{ needs.backend.result }}" == "success" ]]; then
+            SERVICES="backend(${{ needs.backend.outputs.image-tag }})"
+          fi
+          if [[ "${{ needs.frontend.result }}" == "success" ]]; then
+            if [[ -n "$SERVICES" ]]; then
+              SERVICES="${SERVICES}, frontend(${{ needs.frontend.outputs.image-tag }})"
+            else
+              SERVICES="frontend(${{ needs.frontend.outputs.image-tag }})"
+            fi
+          fi
+
+          # Only commit if there are changes
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "deploy(test): update ${SERVICES}"
+            git push
+            echo "✅ GitOps repo updated for test environment"
+          fi
+
+  # ---------------------------------------------------------
   # Notify on success or failure
   # ---------------------------------------------------------
   notify:
-    needs: [changes, backend, frontend]
+    needs: [changes, backend, frontend, update-gitops]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Determine overall status
         id: status
         run: |
-          if [[ "${{ needs.backend.result }}" == "failure" || "${{ needs.frontend.result }}" == "failure" ]]; then
+          if [[ "${{ needs.backend.result }}" == "failure" || "${{ needs.frontend.result }}" == "failure" || "${{ needs.update-gitops.result }}" == "failure" ]]; then
             echo "result=failure" >> "$GITHUB_OUTPUT"
             echo "emoji=❌" >> "$GITHUB_OUTPUT"
             echo "text=Build & Push Failed" >> "$GITHUB_OUTPUT"
           elif [[ "${{ needs.backend.result }}" == "success" || "${{ needs.frontend.result }}" == "success" ]]; then
             echo "result=success" >> "$GITHUB_OUTPUT"
             echo "emoji=✅" >> "$GITHUB_OUTPUT"
-            echo "text=Build & Push Succeeded" >> "$GITHUB_OUTPUT"
+            echo "text=Build & Push Succeeded — Test deploy triggered" >> "$GITHUB_OUTPUT"
           else
             echo "result=skipped" >> "$GITHUB_OUTPUT"
           fi
@@ -188,7 +261,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "${{ steps.status.outputs.emoji }} *${{ steps.status.outputs.text }}*\n*Repo:* ${{ github.repository }}\n*Branch:* `${{ github.ref_name }}`\n*Commit:* `${{ github.sha }}`\n*Author:* ${{ github.actor }}\n*Backend:* ${{ needs.backend.result || 'skipped' }}\n*Frontend:* ${{ needs.frontend.result || 'skipped' }}\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>"
+                    "text": "${{ steps.status.outputs.emoji }} *${{ steps.status.outputs.text }}*\n*Repo:* ${{ github.repository }}\n*Commit:* `${{ github.sha }}`\n*Author:* ${{ github.actor }}\n*Backend:* ${{ needs.backend.result || 'skipped' }} ${{ needs.backend.outputs.image-tag || '' }}\n*Frontend:* ${{ needs.frontend.result || 'skipped' }} ${{ needs.frontend.outputs.image-tag || '' }}\n*GitOps Update:* ${{ needs.update-gitops.result || 'skipped' }}\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>"
                   }
                 }
               ]
