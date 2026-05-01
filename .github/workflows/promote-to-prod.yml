@@ -18,6 +18,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
+  GITOPS_REPO: collectiongeek/collectiongeek-gitops
 
 jobs:
   promote:
@@ -56,13 +57,49 @@ jobs:
             check_image "frontend"
           fi
 
-      # Phase 4 will add the gitops-repo update step here.
-      # For now, this is a placeholder.
-      - name: Placeholder — update gitops-repo
+      - name: Checkout gitops-repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.GITOPS_REPO }}
+          token: ${{ secrets.GITOPS_REPO_PAT }}
+
+      - name: Update production image tag(s)
         run: |
-          echo "🚧 GitOps update will be implemented in Phase 4"
-          echo "Services: ${{ github.event.inputs.services }}"
-          echo "Image tag: ${{ github.event.inputs.image-tag }}"
+          SERVICES="${{ github.event.inputs.services }}"
+          TAG="${{ github.event.inputs.image-tag }}"
+
+          if [[ "$SERVICES" == "backend" || "$SERVICES" == "both" ]]; then
+            FILE="charts/backend/values-prod.yaml"
+            echo "Updating backend prod image tag to: ${TAG}"
+            sed -i "s|^  tag:.*|  tag: ${TAG}|" "${FILE}"
+            echo "Updated ${FILE}:"
+            grep "tag:" "${FILE}"
+          fi
+
+          if [[ "$SERVICES" == "frontend" || "$SERVICES" == "both" ]]; then
+            FILE="charts/frontend/values-prod.yaml"
+            echo "Updating frontend prod image tag to: ${TAG}"
+            sed -i "s|^  tag:.*|  tag: ${TAG}|" "${FILE}"
+            echo "Updated ${FILE}:"
+            grep "tag:" "${FILE}"
+          fi
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+
+          SERVICES="${{ github.event.inputs.services }}"
+          TAG="${{ github.event.inputs.image-tag }}"
+
+          if git diff --cached --quiet; then
+            echo "⚠️ No changes to commit — tag may already be set to ${TAG}"
+          else
+            git commit -m "deploy(prod): promote ${SERVICES} to ${TAG}"
+            git push
+            echo "✅ GitOps repo updated for production"
+          fi
 
       - name: Notify Slack
         uses: slackapi/slack-github-action@v2.0.0
@@ -77,7 +114,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "🚀 *Production Promotion Triggered*\n*Services:* ${{ github.event.inputs.services }}\n*Image Tag:* `${{ github.event.inputs.image-tag }}`\n*Triggered by:* ${{ github.actor }}\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>"
+                    "text": "🚀 *Production Promotion Completed*\n*Services:* ${{ github.event.inputs.services }}\n*Image Tag:* `${{ github.event.inputs.image-tag }}`\n*Triggered by:* ${{ github.actor }}\n\n_Remember: Argo CD requires a manual sync for production._\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>"
                   }
                 }
               ]
