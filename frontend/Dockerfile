@@ -17,6 +17,8 @@ RUN npm run build
 # -- Runtime stage --
 FROM nginx:alpine
 
+RUN apk upgrade --no-cache
+
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 # SPA fallback: serve index.html for all routes
