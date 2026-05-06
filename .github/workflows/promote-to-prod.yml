@@ -32,6 +32,13 @@ jobs:
             exit 1
           fi
 
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Verify image(s) exist in GHCR
         run: |
           SERVICES="${{ github.event.inputs.services }}"
@@ -47,8 +54,6 @@ jobs:
             fi
             echo "✅ Found ${image}"
           }
-
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
           if [[ "$SERVICES" == "backend" || "$SERVICES" == "both" ]]; then
             check_image "backend"
