@@ -12,6 +12,7 @@
 
 - Docker Desktop (or Docker Engine + Compose on Linux)
 - VS Code with the [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) extension
+- An [Anthropic API key](https://console.anthropic.com/) for Claude Code — set `ANTHROPIC_API_KEY` in your shell environment before opening the container, or add it to `~/.claude/` so it is picked up via the bind mount
 
 ### Setup
 
@@ -20,7 +21,7 @@
 3. Click "Reopen in Container" when prompted
 4. Wait for the dev container to build (first time only)
 
-All tools (Go, Node, Docker CLI, linters) are provided by the dev container.
+All tools (Go, Node, Docker CLI, linters, Convex CLI, Claude Code) are provided by the dev container.
 
 ### Run locally (dev mode, with hot-reload)
 
@@ -40,6 +41,14 @@ cd frontend && npm run dev
 - Backend API: http://localhost:8080
 - Health check: http://localhost:8080/healthz
 
+Convex (separate terminal):
+
+```bash
+npx convex dev
+```
+
+- Convex dashboard: https://dashboard.convex.dev
+
 ### Run locally (production containers)
 
 ```bash
@@ -56,4 +65,7 @@ If you prefer to work without the dev container, you'll need installed locally:
 - Go 1.22+
 - Node.js 20+
 - Docker & Docker Compose
-- golangci-lint
+- [golangci-lint](https://golangci-lint.run/welcome/install/)
+- [air](https://github.com/air-verse/air) — Go hot-reload (`go install github.com/air-verse/air@latest`)
+- [Convex CLI](https://docs.convex.dev/cli) — (`npm install -g convex`)
+- [Claude Code](https://claude.ai/code) — requires `ANTHROPIC_API_KEY` set in your environment

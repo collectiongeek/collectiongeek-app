@@ -24,15 +24,4 @@ fi
 echo "==> Installing Convex CLI..."
 npm install -g convex
 
-echo "==> Installing Helm..."
-HELM_VERSION="v3.17.3"
-HELM_INSTALL_SCRIPT="$(mktemp)"
-curl -fsSL -o "${HELM_INSTALL_SCRIPT}" https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
-chmod +x "${HELM_INSTALL_SCRIPT}"
-DESIRED_VERSION="${HELM_VERSION}" \
-  VERIFY_CHECKSUM=true \
-  VERIFY_SIGNATURES=true \
-  "${HELM_INSTALL_SCRIPT}"
-rm -f "${HELM_INSTALL_SCRIPT}"
-
 echo "==> Done! Dev environment is ready."
