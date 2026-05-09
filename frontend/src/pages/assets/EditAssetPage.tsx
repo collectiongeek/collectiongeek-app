@@ -42,7 +42,7 @@ function EditAssetForm({ id, asset }: { id: string; asset: AssetWithFields }) {
     category: asset.category ?? "",
   });
   const [customFields, setCustomFields] = useState<CustomField[]>(
-    asset.customFields.map((f) => ({ fieldName: f.fieldName, fieldValue: f.fieldValue, fieldType: f.fieldType }))
+    asset.customFields.map((f: Doc<"customFields">) => ({ fieldName: f.fieldName, fieldValue: f.fieldValue, fieldType: f.fieldType }))
   );
 
   function set(field: keyof typeof form, value: string) { setForm((prev) => ({ ...prev, [field]: value })); }
@@ -57,7 +57,7 @@ function EditAssetForm({ id, asset }: { id: string; asset: AssetWithFields }) {
     try {
       const token = await getAccessToken();
       if (!token) throw new Error("Not authenticated");
-      const tags = form.tags.split(",").map((t) => t.trim()).filter(Boolean);
+      const tags = form.tags.split(",").map((t: string) => t.trim()).filter(Boolean);
       await updateAsset(token, id, {
         name: form.name.trim(),
         description: form.description.trim() || undefined,
