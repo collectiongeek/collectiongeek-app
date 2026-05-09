@@ -57,8 +57,7 @@ export default http;
 
 type WorkOSEvent =
   | { event: "user.created"; data: { id: string; email: string } }
-  | { event: "user.deleted"; data: { id: string } }
-  | { event: string; data: Record<string, unknown> };
+  | { event: "user.deleted"; data: { id: string } };
 
 async function verifyWebhookSignature(
   body: string,

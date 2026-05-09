@@ -25,9 +25,8 @@ export function EditCollectionPage() {
     collectionId: id as Id<"collections">,
   });
 
-  if (collection === undefined) {
-    return <Skeleton className="h-48 w-full max-w-lg" />;
-  }
+  if (collection === undefined) return <Skeleton className="h-48 w-full max-w-lg" />;
+  if (!collection) return null;
 
   return <EditCollectionForm id={id!} collection={collection} />;
 }

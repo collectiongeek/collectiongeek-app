@@ -69,13 +69,13 @@ export const searchAssets = query({
       .unique();
     if (!user) return [];
 
-    let results = ctx.db
-      .search("assets", "search_assets", (q) => {
+    return ctx.db
+      .query("assets")
+      .withSearchIndex("search_assets", (q) => {
         const base = q.search("name", searchQuery).eq("userId", user._id);
         return collectionId ? base.eq("collectionId", collectionId) : base;
-      });
-
-    return results.take(20);
+      })
+      .take(20);
   },
 });
 

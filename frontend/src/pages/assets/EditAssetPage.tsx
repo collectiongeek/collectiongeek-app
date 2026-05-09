@@ -23,6 +23,7 @@ export function EditAssetPage() {
   const asset = useQuery(api.assets.getAsset, { assetId: id as Id<"assets"> });
 
   if (asset === undefined) return <Skeleton className="h-48 w-full max-w-lg" />;
+  if (!asset) return null;
 
   return <EditAssetForm id={id!} asset={asset} />;
 }
