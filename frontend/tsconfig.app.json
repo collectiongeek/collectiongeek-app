@@ -24,7 +24,9 @@
     /* Path aliases */
     "paths": {
       "@/*": ["./src/*"],
-      "@convex-gen/*": ["../convex/_generated/*"]
+      "@convex-gen/*": ["../convex/_generated/*"],
+      "convex": ["./node_modules/convex"],
+      "convex/*": ["./node_modules/convex/*"]
     }
   },
   "include": ["src"]
