@@ -1,0 +1,131 @@
+import { useState } from "react";
+import { useAuth } from "@workos-inc/authkit-react";
+import { useQuery } from "convex/react";
+import { api } from "@convex-gen/api";
+import { deleteAccount } from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
+
+export function SettingsPage() {
+  const { user, getAccessToken } = useAuth();
+  const convexUser = useQuery(api.users.getUser);
+  const [deleting, setDeleting] = useState(false);
+
+  async function handleDeleteAccount() {
+    setDeleting(true);
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("Not authenticated");
+      await deleteAccount(token);
+      // Clear the AuthKit refresh token from localStorage so the now-revoked
+      // session isn't restored on next load. WorkOS stores it under a
+      // client-scoped key (devMode) with a legacy fallback key.
+      const clientId = import.meta.env.VITE_WORKOS_CLIENT_ID as string;
+      localStorage.removeItem(`workos:refresh-token:${clientId}`);
+      localStorage.removeItem("workos:refresh-token");
+      // Hard reload instead of signOut() to avoid the WorkOS-hosted redirect
+      // which errors for a just-deleted user.
+      window.location.replace("/");
+    } catch {
+      toast.error("Failed to delete account. Please try again.");
+      setDeleting(false);
+    }
+  }
+
+  return (
+    <div className="max-w-2xl space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold">Settings</h1>
+        <p className="text-muted-foreground text-sm mt-1">
+          Manage your account and preferences.
+        </p>
+      </div>
+
+      <Separator />
+
+      {/* Profile */}
+      <section className="space-y-4">
+        <h2 className="text-base font-semibold">Profile</h2>
+        <div className="grid gap-1 text-sm">
+          <div className="flex items-center justify-between py-2">
+            <span className="text-muted-foreground">Email</span>
+            <span>{user?.email}</span>
+          </div>
+          <div className="flex items-center justify-between py-2">
+            <span className="text-muted-foreground">Username</span>
+            <span>{convexUser?.username || "—"}</span>
+          </div>
+          <div className="flex items-center justify-between py-2">
+            <span className="text-muted-foreground">Member since</span>
+            <span>
+              {convexUser
+                ? new Date(convexUser.createdAt).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })
+                : "—"}
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <Separator />
+
+      {/* Danger zone */}
+      <section className="space-y-4">
+        <h2 className="text-base font-semibold text-destructive">Danger zone</h2>
+        <div className="rounded-lg border border-destructive/30 p-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="font-medium text-sm">Delete account</p>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Permanently delete your account and all collections, assets, and
+                metadata. This cannot be undone.
+              </p>
+            </div>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm" disabled={deleting}>
+                  Delete account
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete your account and{" "}
+                    <strong>all your collections and assets</strong>. There is no
+                    recovery. This action is immediate and irreversible.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-white hover:bg-destructive/90"
+                    onClick={handleDeleteAccount}
+                    disabled={deleting}
+                  >
+                    {deleting ? "Deleting…" : "Yes, delete everything"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}

@@ -1,0 +1,11 @@
+{
+  "name": "collectiongeek",
+  "private": true,
+  "scripts": {
+    "dev:convex": "convex dev",
+    "deploy:convex": "convex deploy"
+  },
+  "dependencies": {
+    "convex": "^1.38.0"
+  }
+}
