@@ -1,22 +1,25 @@
 # -- Build stage --
 FROM node:20-alpine AS builder
 
-WORKDIR /app
+# Mirror the repo layout so the ../convex/_generated/ alias in tsconfig resolves.
+WORKDIR /workspace
 
-COPY package.json package-lock.json ./
-RUN npm ci
+# Cache dependency downloads
+COPY frontend/package.json frontend/package-lock.json ./frontend/
+RUN cd frontend && npm ci && ln -s /workspace/frontend/node_modules /workspace/node_modules
 
-COPY . .
+COPY frontend/ ./frontend/
+COPY convex/_generated/ ./convex/_generated/
 
-RUN npm run build
+RUN cd frontend && npm run build
 
 # -- Runtime stage --
 FROM nginx:alpine
 
 RUN apk upgrade --no-cache
 
-COPY --from=builder /app/dist /usr/share/nginx/html
-COPY docker-entrypoint.sh /docker-entrypoint.sh
+COPY --from=builder /workspace/frontend/dist /usr/share/nginx/html
+COPY frontend/docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
 # SPA fallback + WorkOS proxy (avoids CORS on /user_management/* token exchange)

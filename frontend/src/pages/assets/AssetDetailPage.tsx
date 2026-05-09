@@ -2,7 +2,7 @@ import { useNavigate, useParams, Link } from "react-router-dom";
 import { useQuery } from "convex/react";
 import { useAuth } from "@workos-inc/authkit-react";
 import { api } from "@convex-gen/api";
-import type { Id } from "@convex-gen/dataModel";
+import type { Doc, Id } from "@convex-gen/dataModel";
 import { formatCents, formatDate } from "@/lib/utils";
 import { deleteAsset } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -95,7 +95,7 @@ export function AssetDetailPage() {
 
       {asset.tags && asset.tags.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
-          {asset.tags.map((tag) => <Badge key={tag} variant="secondary">{tag}</Badge>)}
+          {asset.tags.map((tag: string) => <Badge key={tag} variant="secondary">{tag}</Badge>)}
         </div>
       )}
 
@@ -122,7 +122,7 @@ export function AssetDetailPage() {
           <div className="space-y-3">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Custom fields</h2>
             <dl className="grid grid-cols-2 gap-x-8 gap-y-4 text-sm">
-              {asset.customFields.map((f) => (
+              {asset.customFields.map((f: Doc<"customFields">) => (
                 <div key={f._id}>
                   <dt className="text-muted-foreground">{f.fieldName}</dt>
                   <dd className="font-medium mt-0.5">{f.fieldValue}</dd>

@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "convex/react";
 import { useAuth } from "@workos-inc/authkit-react";
 import { api } from "@convex-gen/api";
-import type { Id } from "@convex-gen/dataModel";
+import type { Doc, Id } from "@convex-gen/dataModel";
 import { formatCents } from "@/lib/utils";
 import { deleteAsset } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -112,7 +112,7 @@ export function CollectionDetailPage() {
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {assets.map((asset) => (
+          {assets.map((asset: Doc<"assets">) => (
             <div key={asset._id} className="group relative rounded-xl border bg-card p-4 hover:shadow-sm transition-shadow">
               <div className="flex items-start justify-between gap-2">
                 <div
@@ -128,7 +128,7 @@ export function CollectionDetailPage() {
                   )}
                   {asset.tags && asset.tags.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-1.5">
-                      {asset.tags.slice(0, 3).map((tag) => (
+                      {asset.tags.slice(0, 3).map((tag: string) => (
                         <Badge key={tag} variant="outline" className="text-xs px-1.5 py-0">{tag}</Badge>
                       ))}
                     </div>

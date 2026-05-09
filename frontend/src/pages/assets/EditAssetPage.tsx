@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "convex/react";
 import { useAuth } from "@workos-inc/authkit-react";
 import { api } from "@convex-gen/api";
-import type { Id } from "@convex-gen/dataModel";
+import type { Doc, Id } from "@convex-gen/dataModel";
 import { updateAsset } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,7 +36,7 @@ export function EditAssetPage() {
         tags: asset.tags?.join(", ") ?? "",
         category: asset.category ?? "",
       });
-      setCustomFields(asset.customFields.map((f) => ({ fieldName: f.fieldName, fieldValue: f.fieldValue, fieldType: f.fieldType })));
+      setCustomFields(asset.customFields.map((f: Doc<"customFields">) => ({ fieldName: f.fieldName, fieldValue: f.fieldValue, fieldType: f.fieldType })));
     }
   }, [asset]);
 

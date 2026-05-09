@@ -2,8 +2,8 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "convex/react";
 import { api } from "@convex-gen/api";
+import type { Doc } from "@convex-gen/dataModel";
 import { useAuth } from "@workos-inc/authkit-react";
-import { formatCents } from "@/lib/utils";
 import { deleteCollection } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -88,7 +88,7 @@ export function DashboardPage() {
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {collections.map((col) => (
+          {collections.map((col: Doc<"collections">) => (
             <div
               key={col._id}
               className="group relative rounded-xl border bg-card p-5 hover:shadow-sm transition-shadow"
