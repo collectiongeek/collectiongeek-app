@@ -39,6 +39,7 @@ function getWorkOSProxyProps() {
   };
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 function App() {
   const workosProxy = getWorkOSProxyProps();
   return (

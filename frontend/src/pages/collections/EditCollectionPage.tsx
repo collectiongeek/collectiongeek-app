@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "convex/react";
 import { useAuth } from "@workos-inc/authkit-react";
 import { api } from "@convex-gen/api";
-import type { Id } from "@convex-gen/dataModel";
+import type { Doc, Id } from "@convex-gen/dataModel";
 import { updateCollection } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,23 +21,26 @@ const COLLECTION_TYPES = [
 
 export function EditCollectionPage() {
   const { id } = useParams<{ id: string }>();
-  const { getAccessToken } = useAuth();
-  const navigate = useNavigate();
   const collection = useQuery(api.collections.getCollection, {
     collectionId: id as Id<"collections">,
   });
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ name: "", description: "", collectionType: "" });
 
-  useEffect(() => {
-    if (collection) {
-      setForm({
-        name: collection.name,
-        description: collection.description ?? "",
-        collectionType: collection.collectionType ?? "",
-      });
-    }
-  }, [collection]);
+  if (collection === undefined) {
+    return <Skeleton className="h-48 w-full max-w-lg" />;
+  }
+
+  return <EditCollectionForm id={id!} collection={collection} />;
+}
+
+function EditCollectionForm({ id, collection }: { id: string; collection: Doc<"collections"> }) {
+  const { getAccessToken } = useAuth();
+  const navigate = useNavigate();
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    name: collection.name,
+    description: collection.description ?? "",
+    collectionType: collection.collectionType ?? "",
+  });
 
   function set(field: keyof typeof form, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -45,7 +48,7 @@ export function EditCollectionPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.name.trim() || !id) return;
+    if (!form.name.trim()) return;
     setSaving(true);
     try {
       const token = await getAccessToken();
@@ -61,10 +64,6 @@ export function EditCollectionPage() {
       toast.error("Failed to update collection");
       setSaving(false);
     }
-  }
-
-  if (collection === undefined) {
-    return <Skeleton className="h-48 w-full max-w-lg" />;
   }
 
   return (

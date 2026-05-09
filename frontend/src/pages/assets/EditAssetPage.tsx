@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "convex/react";
 import { useAuth } from "@workos-inc/authkit-react";
@@ -16,29 +16,33 @@ import { toast } from "sonner";
 
 interface CustomField { fieldName: string; fieldValue: string; fieldType: string }
 
+type AssetWithFields = Doc<"assets"> & { customFields: Doc<"customFields">[] };
+
 export function EditAssetPage() {
   const { id } = useParams<{ id: string }>();
+  const asset = useQuery(api.assets.getAsset, { assetId: id as Id<"assets"> });
+
+  if (asset === undefined) return <Skeleton className="h-48 w-full max-w-lg" />;
+
+  return <EditAssetForm id={id!} asset={asset} />;
+}
+
+function EditAssetForm({ id, asset }: { id: string; asset: AssetWithFields }) {
   const { getAccessToken } = useAuth();
   const navigate = useNavigate();
-  const asset = useQuery(api.assets.getAsset, { assetId: id as Id<"assets"> });
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ name: "", description: "", dateAcquired: "", purchasedValue: "", marketValue: "", tags: "", category: "" });
-  const [customFields, setCustomFields] = useState<CustomField[]>([]);
-
-  useEffect(() => {
-    if (asset) {
-      setForm({
-        name: asset.name,
-        description: asset.description ?? "",
-        dateAcquired: asset.dateAcquired ?? "",
-        purchasedValue: asset.purchasedValue !== undefined ? (asset.purchasedValue / 100).toFixed(2) : "",
-        marketValue: asset.marketValue !== undefined ? (asset.marketValue / 100).toFixed(2) : "",
-        tags: asset.tags?.join(", ") ?? "",
-        category: asset.category ?? "",
-      });
-      setCustomFields(asset.customFields.map((f: Doc<"customFields">) => ({ fieldName: f.fieldName, fieldValue: f.fieldValue, fieldType: f.fieldType })));
-    }
-  }, [asset]);
+  const [form, setForm] = useState({
+    name: asset.name,
+    description: asset.description ?? "",
+    dateAcquired: asset.dateAcquired ?? "",
+    purchasedValue: asset.purchasedValue !== undefined ? (asset.purchasedValue / 100).toFixed(2) : "",
+    marketValue: asset.marketValue !== undefined ? (asset.marketValue / 100).toFixed(2) : "",
+    tags: asset.tags?.join(", ") ?? "",
+    category: asset.category ?? "",
+  });
+  const [customFields, setCustomFields] = useState<CustomField[]>(
+    asset.customFields.map((f) => ({ fieldName: f.fieldName, fieldValue: f.fieldValue, fieldType: f.fieldType }))
+  );
 
   function set(field: keyof typeof form, value: string) { setForm((prev) => ({ ...prev, [field]: value })); }
   function addField() { setCustomFields((prev) => [...prev, { fieldName: "", fieldValue: "", fieldType: "text" }]); }
@@ -47,7 +51,7 @@ export function EditAssetPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.name.trim() || !id) return;
+    if (!form.name.trim()) return;
     setSaving(true);
     try {
       const token = await getAccessToken();
@@ -70,8 +74,6 @@ export function EditAssetPage() {
       setSaving(false);
     }
   }
-
-  if (asset === undefined) return <Skeleton className="h-48 w-full max-w-lg" />;
 
   return (
     <div className="max-w-lg space-y-6">
