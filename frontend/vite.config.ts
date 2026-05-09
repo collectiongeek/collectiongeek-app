@@ -20,6 +20,10 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "./src"),
       "@convex-gen": path.resolve(__dirname, "../convex/_generated"),
+      // Anchor all convex/* imports to frontend's node_modules so Vite can
+      // resolve them regardless of where the importing file lives in the tree
+      // (e.g. convex/_generated/api.js sits outside the frontend directory).
+      "convex": path.resolve(__dirname, "./node_modules/convex"),
     },
   },
 });
