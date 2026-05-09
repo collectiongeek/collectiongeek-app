@@ -12,23 +12,28 @@ on:
           - frontend
           - both
       image-tag:
-        description: "Image tag to promote (commit SHA — check GHCR or test deploy)"
+        description: "Image tag to promote (7-char commit SHA — check test deployment)"
         required: true
         type: string
 
 env:
   REGISTRY: ghcr.io
+  BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/backend
+  FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/frontend
   GITOPS_REPO: collectiongeek/collectiongeek-gitops
 
 jobs:
   promote:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Validate image tag format
         run: |
-          TAG="${{ github.event.inputs.image-tag }}"
+          TAG="${{ inputs.image-tag }}"
           if [[ ! "$TAG" =~ ^[a-f0-9]{7,40}$ ]]; then
-            echo "::error::Image tag must be a commit SHA (7-40 hex characters). Got: $TAG"
+            echo "::error::Image tag must be a commit SHA (7–40 hex chars). Got: $TAG"
             exit 1
           fi
 
@@ -39,69 +44,76 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Verify image(s) exist in GHCR
+      # -------------------------------------------------------
+      # Verify the image(s) built and tested for this SHA exist.
+      # The same image goes to production — no rebuild needed.
+      # -------------------------------------------------------
+      - name: Verify backend image exists
+        if: inputs.services == 'backend' || inputs.services == 'both'
         run: |
-          SERVICES="${{ github.event.inputs.services }}"
-          TAG="${{ github.event.inputs.image-tag }}"
-          OWNER="${{ github.repository_owner }}"
-
-          check_image() {
-            local image="ghcr.io/${OWNER}/$1:${TAG}"
-            echo "Checking for ${image}..."
-            if ! docker manifest inspect "${image}" > /dev/null 2>&1; then
-              echo "::error::Image not found: ${image}"
-              exit 1
-            fi
-            echo "✅ Found ${image}"
-          }
-
-          if [[ "$SERVICES" == "backend" || "$SERVICES" == "both" ]]; then
-            check_image "backend"
+          IMAGE="${{ env.BACKEND_IMAGE }}:${{ inputs.image-tag }}"
+          echo "Checking for ${IMAGE}…"
+          if ! docker manifest inspect "${IMAGE}" > /dev/null 2>&1; then
+            echo "::error::Backend image not found: ${IMAGE}"
+            exit 1
           fi
-          if [[ "$SERVICES" == "frontend" || "$SERVICES" == "both" ]]; then
-            check_image "frontend"
-          fi
+          echo "✅ Found ${IMAGE}"
 
-      - name: Checkout gitops-repo
+      - name: Verify frontend image exists
+        if: inputs.services == 'frontend' || inputs.services == 'both'
+        run: |
+          IMAGE="${{ env.FRONTEND_IMAGE }}:${{ inputs.image-tag }}"
+          echo "Checking for ${IMAGE}…"
+          if ! docker manifest inspect "${IMAGE}" > /dev/null 2>&1; then
+            echo "::error::Frontend image not found: ${IMAGE}"
+            exit 1
+          fi
+          echo "✅ Found ${IMAGE}"
+
+      # -------------------------------------------------------
+      # Update the gitops repo with the promoted tag(s).
+      # The same SHA tag is used for both test and production —
+      # environment config is injected at runtime via K8s ConfigMap.
+      # -------------------------------------------------------
+      - name: Checkout gitops repo
         uses: actions/checkout@v4
         with:
           repository: ${{ env.GITOPS_REPO }}
           token: ${{ secrets.GITOPS_REPO_PAT }}
+          path: gitops-repo
 
       - name: Update production image tag(s)
         run: |
-          SERVICES="${{ github.event.inputs.services }}"
-          TAG="${{ github.event.inputs.image-tag }}"
+          TAG="${{ inputs.image-tag }}"
 
-          if [[ "$SERVICES" == "backend" || "$SERVICES" == "both" ]]; then
-            FILE="charts/backend/values-prod.yaml"
-            echo "Updating backend prod image tag to: ${TAG}"
+          if [[ "${{ inputs.services }}" == "backend" || "${{ inputs.services }}" == "both" ]]; then
+            FILE="gitops-repo/charts/backend/values-prod.yaml"
+            echo "Updating backend prod tag → ${TAG}"
             sed -i "s|^  tag:.*|  tag: ${TAG}|" "${FILE}"
-            echo "Updated ${FILE}:"
             grep "tag:" "${FILE}"
           fi
 
-          if [[ "$SERVICES" == "frontend" || "$SERVICES" == "both" ]]; then
-            FILE="charts/frontend/values-prod.yaml"
-            echo "Updating frontend prod image tag to: ${TAG}"
+          if [[ "${{ inputs.services }}" == "frontend" || "${{ inputs.services }}" == "both" ]]; then
+            FILE="gitops-repo/charts/frontend/values-prod.yaml"
+            echo "Updating frontend prod tag → ${TAG}"
             sed -i "s|^  tag:.*|  tag: ${TAG}|" "${FILE}"
-            echo "Updated ${FILE}:"
             grep "tag:" "${FILE}"
           fi
 
       - name: Commit and push
         run: |
+          cd gitops-repo
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
 
-          SERVICES="${{ github.event.inputs.services }}"
-          TAG="${{ github.event.inputs.image-tag }}"
+          TAG="${{ inputs.image-tag }}"
+          SERVICES="${{ inputs.services }}"
 
           if git diff --cached --quiet; then
-            echo "⚠️ No changes to commit — tag may already be set to ${TAG}"
+            echo "⚠️ No changes to commit — tags may already be set"
           else
-            git commit -m "deploy(prod): promote ${SERVICES} to ${TAG}"
+            git commit -m "deploy(prod): promote ${SERVICES} → ${TAG}"
             git push
             echo "✅ GitOps repo updated for production"
           fi
@@ -119,7 +131,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "🚀 *Production Promotion Completed*\n*Services:* ${{ github.event.inputs.services }}\n*Image Tag:* `${{ github.event.inputs.image-tag }}`\n*Triggered by:* ${{ github.actor }}\n\n_Remember: Argo CD requires a manual sync for production._\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>"
+                    "text": "🚀 *Production Promotion Completed*\n*Services:* ${{ inputs.services }}\n*Image tag:* `${{ inputs.image-tag }}`\n*Triggered by:* ${{ github.actor }}\n\n_Remember: Argo CD requires a manual sync for production._\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>"
                   }
                 }
               ]
