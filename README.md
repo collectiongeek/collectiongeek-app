@@ -2,70 +2,104 @@
 
 ## Architecture
 
-- **Backend:** Go (Chi) — API server at `backend/`
-- **Frontend:** React (Vite + TypeScript) — Web app at `frontend/`
-- **State:** Convex — Real-time data layer at `convex/`
+| Layer | Tech | Location |
+|---|---|---|
+| Frontend | React + Vite + TypeScript + Tailwind v4 + shadcn | `frontend/` |
+| Backend | Go (Chi) — REST API | `backend/` |
+| Database / Realtime | Convex | `convex/` |
+| Auth | WorkOS AuthKit | — |
 
-## Getting Started
+## Prerequisites
 
-### Prerequisites
-
-- Docker Desktop (or Docker Engine + Compose on Linux)
+- Docker Desktop (or Docker Engine on Linux)
 - VS Code with the [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) extension
-- An [Anthropic API key](https://console.anthropic.com/) for Claude Code — set `ANTHROPIC_API_KEY` in your shell environment before opening the container, or add it to `~/.claude/` so it is picked up via the bind mount
+- An [Anthropic API key](https://console.anthropic.com/) — set `ANTHROPIC_API_KEY` in your shell before opening the container, or drop it in `~/.claude/`
 
-### Setup
+All other tools (Go, Node, air, Convex CLI, Claude Code) are provided by the dev container.
 
-1. Clone the repo
-2. Open the folder in VS Code
-3. Click "Reopen in Container" when prompted
-4. Wait for the dev container to build (first time only)
+## First-time setup
 
-All tools (Go, Node, Docker CLI, linters, Convex CLI, Claude Code) are provided by the dev container.
+See [SETUP.md](SETUP.md) for the full walkthrough: WorkOS project config, Convex project linking, and how to populate the env files below.
 
-### Run locally (dev mode, with hot-reload)
+### Env files you need
 
-Backend:
+**`frontend/.env.local`** (Vite dev server — copy from `frontend/.env.local.example`)
 
-```bash
-cd backend && air
+```
+VITE_API_BASE_URL=http://localhost:8081
+VITE_WORKOS_CLIENT_ID=client_...      # WorkOS Staging Client ID
+VITE_CONVEX_URL=https://....convex.cloud
 ```
 
-Frontend (separate terminal):
+**`.env.local`** (Convex CLI — copy from `.env.local.example`)
 
-```bash
-cd frontend && npm run dev
+```
+WORKOS_CLIENT_ID=client_...           # WorkOS Staging Client ID
+WORKOS_API_KEY=sk_test_...            # WorkOS Staging API key
 ```
 
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:8080
-- Health check: http://localhost:8080/healthz
+## Run locally (dev mode, with hot-reload)
 
-Convex (separate terminal):
+Open three terminals inside the dev container:
+
+**Terminal 1 — Convex** (auto-deploys schema and function changes)
 
 ```bash
 npx convex dev
 ```
 
-- Convex dashboard: https://dashboard.convex.dev
+**Terminal 2 — Go backend**
 
-### Run locally (production containers)
+```bash
+cd backend && \
+PORT=8081 \
+WORKOS_CLIENT_ID=client_... \
+WORKOS_API_KEY=sk_test_... \
+CONVEX_DEPLOY_URL=https://....convex.cloud \
+CONVEX_DEPLOY_KEY=dev:... \
+go run ./cmd/server
+```
+
+> Replace `go run ./cmd/server` with `air` if you want automatic restart on file changes.
+
+**Terminal 3 — Vite dev server**
+
+```bash
+cd frontend && npm run dev
+```
+
+| Service | URL |
+|---|---|
+| App | http://localhost:3000 |
+| Backend API | http://localhost:8081 |
+| Health check | http://localhost:8081/healthz |
+| Convex dashboard | https://dashboard.convex.dev |
+
+> **WorkOS redirect URI:** add `http://localhost:3000/callback` to your WorkOS Staging
+> environment under Authentication → AuthKit → Redirect URIs.
+
+## Run locally (production containers)
+
+Tests the Docker build without needing a cluster. Does not use `air` or Vite hot-reload.
 
 ```bash
 docker compose up --build
 ```
 
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:8080
+| Service | URL |
+|---|---|
+| App | http://localhost:3000 |
+| Backend API | http://localhost:8080 |
 
-### Without Dev Container (not recommended)
+> The compose backend reads `CONVEX_DEPLOY_URL`, `CONVEX_DEPLOY_KEY`, and
+> `WORKOS_CLIENT_ID` from your shell environment, so export them before running.
 
-If you prefer to work without the dev container, you'll need installed locally:
+## Without the dev container
+
+Install manually:
 
 - Go 1.22+
 - Node.js 20+
-- Docker & Docker Compose
-- [golangci-lint](https://golangci-lint.run/welcome/install/)
-- [air](https://github.com/air-verse/air) — Go hot-reload (`go install github.com/air-verse/air@latest`)
-- [Convex CLI](https://docs.convex.dev/cli) — (`npm install -g convex`)
-- [Claude Code](https://claude.ai/code) — requires `ANTHROPIC_API_KEY` set in your environment
+- [`air`](https://github.com/air-verse/air) — `go install github.com/air-verse/air@latest`
+- [Convex CLI](https://docs.convex.dev/cli) — `npm install -g convex`
+- [Claude Code](https://claude.ai/code) — `npm install -g @anthropic-ai/claude-code`
