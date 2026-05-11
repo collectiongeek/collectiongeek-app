@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/joho/godotenv"
 
 	convexclient "github.com/collectiongeek/collectiongeek-app/backend/internal/convex"
 	"github.com/collectiongeek/collectiongeek-app/backend/internal/handlers"
@@ -17,6 +18,15 @@ import (
 )
 
 func main() {
+	// Auto-load .env.local for local development. godotenv.Load is a no-op
+	// when the file is absent and does not override vars already in the
+	// environment, so this is safe in production.
+	for _, p := range []string{".env.local", "../.env.local"} {
+		if err := godotenv.Load(p); err == nil {
+			break
+		}
+	}
+
 	ctx := context.Background()
 
 	// Wire up the JWKS middleware (validates WorkOS JWTs).

@@ -19,7 +19,7 @@ import {
 import { toast } from "sonner";
 
 export function SettingsPage() {
-  const { user, getAccessToken } = useAuth();
+  const { user, getAccessToken, signOut } = useAuth();
   const convexUser = useQuery(api.users.getUser);
   const [deleting, setDeleting] = useState(false);
 
@@ -29,15 +29,16 @@ export function SettingsPage() {
       const token = await getAccessToken();
       if (!token) throw new Error("Not authenticated");
       await deleteAccount(token);
-      // Clear the AuthKit refresh token from localStorage so the now-revoked
-      // session isn't restored on next load. WorkOS stores it under a
-      // client-scoped key (devMode) with a legacy fallback key.
-      const clientId = import.meta.env.VITE_WORKOS_CLIENT_ID as string;
-      localStorage.removeItem(`workos:refresh-token:${clientId}`);
-      localStorage.removeItem("workos:refresh-token");
-      // Hard reload instead of signOut() to avoid the WorkOS-hosted redirect
-      // which errors for a just-deleted user.
-      window.location.replace("/");
+      // signOut({ navigate: false }) clears the in-memory JWT and localStorage
+      // refresh tokens without redirecting through the WorkOS-hosted logout URL
+      // (which can error when the user has just been deleted). The background
+      // fetch it sends is best-effort; we redirect regardless.
+      await signOut({ navigate: false }).catch(() => {});
+      // Redirect to the unprotected /account-deleted page instead of "/" to
+      // avoid the auth redirect loop: "/" detects a live WorkOS session and
+      // bounces to /dashboard → ProtectedRoute re-runs ensureUser → the
+      // just-deleted Convex user is re-created with an empty username.
+      window.location.replace("/account-deleted");
     } catch {
       toast.error("Failed to delete account. Please try again.");
       setDeleting(false);

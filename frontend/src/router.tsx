@@ -3,6 +3,7 @@ import { Layout } from "@/components/layout/Layout";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { LandingPage } from "@/pages/LandingPage";
 import { AuthCallback } from "@/pages/auth/AuthCallback";
+import { AccountDeletedPage } from "@/pages/AccountDeletedPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 
@@ -19,6 +20,7 @@ import { EditAssetPage } from "@/pages/assets/EditAssetPage";
 export const router = createBrowserRouter([
   { path: "/", element: <LandingPage /> },
   { path: "/callback", element: <AuthCallback /> },
+  { path: "/account-deleted", element: <AccountDeletedPage /> },
 
   {
     element: <ProtectedRoute />,
