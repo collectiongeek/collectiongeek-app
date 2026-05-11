@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
@@ -16,7 +18,41 @@ import (
 	"github.com/collectiongeek/collectiongeek-app/backend/internal/middleware"
 )
 
+// loadDotEnvLocal reads key=value pairs from a file and sets any that are not
+// already present in the environment. Safe to call in production — it is a
+// no-op when the file does not exist.
+func loadDotEnvLocal(path string) {
+	f, err := os.Open(path)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		key, val, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		key = strings.TrimSpace(key)
+		val = strings.TrimSpace(val)
+		if os.Getenv(key) == "" {
+			os.Setenv(key, val)
+		}
+	}
+}
+
 func main() {
+	// Auto-load .env.local for local development (no-op if file is absent).
+	// Tries the project root relative to both common working directories.
+	for _, p := range []string{".env.local", "../.env.local"} {
+		loadDotEnvLocal(p)
+	}
+
 	ctx := context.Background()
 
 	// Wire up the JWKS middleware (validates WorkOS JWTs).
