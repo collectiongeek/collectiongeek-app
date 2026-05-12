@@ -46,7 +46,7 @@ function App() {
     <AuthKitProvider
       clientId={config.workosClientId}
       redirectUri={`${window.location.origin}/callback`}
-      devMode={true}
+      devMode={import.meta.env.DEV}
       {...workosProxy}
     >
       <ConvexProviderWithAuth client={convex} useAuth={useConvexAuth}>
