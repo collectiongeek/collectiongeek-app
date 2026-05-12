@@ -24,13 +24,15 @@ env:
 
 jobs:
   deploy-convex:
+    needs: [promote]
+    if: ${{ needs.promote.result == 'success' && (inputs.services == 'backend' || inputs.services == 'both') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
 
       - name: Install dependencies
         run: npm ci
@@ -50,7 +52,7 @@ jobs:
         run: |
           TAG="${{ inputs.image-tag }}"
           if [[ ! "$TAG" =~ ^[a-f0-9]{7,40}$ ]]; then
-            echo "::error::Image tag must be a commit SHA (7–40 hex chars). Got: $TAG"
+            echo "::error::Image tag must be a commit SHA (7-40 hex chars). Got: $TAG"
             exit 1
           fi
 
@@ -153,7 +155,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "🚀 *Production Promotion Completed*\n*Services:* ${{ inputs.services }}\n*Image tag:* `${{ inputs.image-tag }}`\n*Convex deploy:* ${{ needs.deploy-convex.result }}\n*Triggered by:* ${{ github.actor }}\n\n_Remember: Argo CD requires a manual sync for production._\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>"
+                    "text": "🚀 *Production Promotion*\n*Promote job:* ${{ needs.promote.result }}\n*Convex deploy:* ${{ needs.deploy-convex.result }}\n*Services:* ${{ inputs.services }}\n*Image tag:* `${{ inputs.image-tag }}`\n*Triggered by:* ${{ github.actor }}\n\n_Remember: Argo CD requires a manual sync for production._\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>"
                   }
                 }
               ]
