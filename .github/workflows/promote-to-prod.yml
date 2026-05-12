@@ -25,7 +25,6 @@ env:
 jobs:
   deploy-convex:
     needs: [promote]
-    if: ${{ needs.promote.result == 'success' && (inputs.services == 'backend' || inputs.services == 'both') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
