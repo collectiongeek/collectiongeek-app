@@ -3,9 +3,8 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	"io"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 	"unicode"
@@ -15,11 +14,17 @@ import (
 )
 
 type UsersHandler struct {
-	convex *convexclient.Client
+	convex       *convexclient.Client
+	workosAPIKey string
+	httpClient   *http.Client
 }
 
-func NewUsersHandler(convex *convexclient.Client) *UsersHandler {
-	return &UsersHandler{convex: convex}
+func NewUsersHandler(convex *convexclient.Client, workosAPIKey string) *UsersHandler {
+	return &UsersHandler{
+		convex:       convex,
+		workosAPIKey: workosAPIKey,
+		httpClient:   &http.Client{Timeout: 10 * time.Second},
+	}
 }
 
 // POST /api/v1/users/me — ensure the user exists in Convex, and optionally set their username.
@@ -95,25 +100,26 @@ func (h *UsersHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Step 2: delete the user from WorkOS (best-effort — Convex data is already gone).
-	if apiKey := os.Getenv("WORKOS_API_KEY"); apiKey != "" {
-		url := fmt.Sprintf("https://api.workos.com/user_management/users/%s", workosUserID)
-		req, err := http.NewRequestWithContext(r.Context(), http.MethodDelete, url, nil)
-		if err == nil {
-			req.Header.Set("Authorization", "Bearer "+apiKey)
-			client := &http.Client{Timeout: 10 * time.Second}
-			resp, err := client.Do(req)
-			if err != nil {
-				log.Printf("WorkOS delete user %s: request error: %v", workosUserID, err)
-			} else {
-				resp.Body.Close()
-				if resp.StatusCode >= 400 {
-					log.Printf("WorkOS delete user %s: HTTP %d", workosUserID, resp.StatusCode)
-				}
-			}
-		}
-	} else {
-		log.Printf("WORKOS_API_KEY not set — WorkOS user %s not deleted", workosUserID)
+	// Step 2: delete the user from WorkOS.
+	url := fmt.Sprintf("https://api.workos.com/user_management/users/%s", workosUserID)
+	req, err := http.NewRequestWithContext(r.Context(), http.MethodDelete, url, nil)
+	if err != nil {
+		http.Error(w, "Failed to build WorkOS request", http.StatusInternalServerError)
+		return
+	}
+	req.Header.Set("Authorization", "Bearer "+h.workosAPIKey)
+	resp, err := h.httpClient.Do(req)
+	if err != nil {
+		http.Error(w, "Failed to reach WorkOS", http.StatusInternalServerError)
+		return
+	}
+	defer func() {
+		io.Copy(io.Discard, resp.Body) //nolint:errcheck
+		resp.Body.Close()
+	}()
+	if resp.StatusCode >= 400 {
+		http.Error(w, fmt.Sprintf("WorkOS returned %d", resp.StatusCode), http.StatusInternalServerError)
+		return
 	}
 
 	w.WriteHeader(http.StatusOK)

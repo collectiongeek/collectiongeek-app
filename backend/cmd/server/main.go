@@ -41,8 +41,13 @@ func main() {
 		log.Fatalf("Failed to initialize Convex client: %v", err)
 	}
 
+	workosAPIKey := os.Getenv("WORKOS_API_KEY")
+	if workosAPIKey == "" {
+		log.Fatal("WORKOS_API_KEY is required")
+	}
+
 	// Route handlers.
-	usersH := handlers.NewUsersHandler(convex)
+	usersH := handlers.NewUsersHandler(convex, workosAPIKey)
 	collectionsH := handlers.NewCollectionsHandler(convex)
 	assetsH := handlers.NewAssetsHandler(convex)
 
