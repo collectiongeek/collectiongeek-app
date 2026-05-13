@@ -28,9 +28,9 @@ func (h *CollectionsHandler) CreateCollection(w http.ResponseWriter, r *http.Req
 	}
 
 	var body struct {
-		Name           string `json:"name"`
-		Description    string `json:"description"`
-		CollectionType string `json:"collectionType"`
+		Name             string `json:"name"`
+		Description      string `json:"description"`
+		CollectionTypeID string `json:"collectionTypeId"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
@@ -50,14 +50,20 @@ func (h *CollectionsHandler) CreateCollection(w http.ResponseWriter, r *http.Req
 	if body.Description != "" {
 		args["description"] = strings.TrimSpace(body.Description)
 	}
-	if body.CollectionType != "" {
-		args["collectionType"] = body.CollectionType
+	if body.CollectionTypeID != "" {
+		args["collectionTypeId"] = body.CollectionTypeID
 	}
 
 	var result struct {
 		ID string `json:"id"`
 	}
 	if err := h.convex.Mutation(r.Context(), "collections:createCollection", args, &result); err != nil {
+		// Match the specific resource so "User not found" (unexpected post-JWKS) doesn't
+		// surface as a misleading 404 about the collection type.
+		if strings.Contains(err.Error(), "Collection type not found") {
+			http.Error(w, "Collection type not found", http.StatusNotFound)
+			return
+		}
 		http.Error(w, "Failed to create collection", http.StatusInternalServerError)
 		return
 	}
@@ -78,9 +84,9 @@ func (h *CollectionsHandler) UpdateCollection(w http.ResponseWriter, r *http.Req
 	collectionID := chi.URLParam(r, "id")
 
 	var body struct {
-		Name           *string `json:"name"`
-		Description    *string `json:"description"`
-		CollectionType *string `json:"collectionType"`
+		Name             *string `json:"name"`
+		Description      *string `json:"description"`
+		CollectionTypeID *string `json:"collectionTypeId"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
@@ -102,12 +108,16 @@ func (h *CollectionsHandler) UpdateCollection(w http.ResponseWriter, r *http.Req
 	if body.Description != nil {
 		args["description"] = strings.TrimSpace(*body.Description)
 	}
-	if body.CollectionType != nil {
-		args["collectionType"] = *body.CollectionType
+	if body.CollectionTypeID != nil {
+		args["collectionTypeId"] = *body.CollectionTypeID
 	}
 
 	if err := h.convex.Mutation(r.Context(), "collections:updateCollection", args, nil); err != nil {
-		if strings.Contains(err.Error(), "not found") {
+		if strings.Contains(err.Error(), "Collection type not found") {
+			http.Error(w, "Collection type not found", http.StatusNotFound)
+			return
+		}
+		if strings.Contains(err.Error(), "Collection not found") {
 			http.Error(w, "Collection not found", http.StatusNotFound)
 			return
 		}
@@ -132,7 +142,7 @@ func (h *CollectionsHandler) DeleteCollection(w http.ResponseWriter, r *http.Req
 		"workosUserId": workosUserID,
 		"collectionId": collectionID,
 	}, nil); err != nil {
-		if strings.Contains(err.Error(), "not found") {
+		if strings.Contains(err.Error(), "Collection not found") {
 			http.Error(w, "Collection not found", http.StatusNotFound)
 			return
 		}

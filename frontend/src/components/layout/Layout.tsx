@@ -1,4 +1,4 @@
-import { Link, Outlet, useNavigate } from "react-router-dom";
+import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@workos-inc/authkit-react";
 import { BookOpen, LogOut, Settings, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+
+const navItems = [
+  { to: "/dashboard", label: "Collections" },
+  { to: "/assets", label: "Assets" },
+  { to: "/asset-types", label: "Asset types" },
+  { to: "/collection-types", label: "Collection types" },
+];
 
 export function Layout() {
   const { user, signOut } = useAuth();
@@ -23,10 +30,31 @@ export function Layout() {
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
-          <Link to="/dashboard" className="flex items-center gap-2 font-semibold">
-            <BookOpen className="size-5" />
-            CollectionGeek
-          </Link>
+          <div className="flex items-center gap-6">
+            <Link to="/dashboard" className="flex items-center gap-2 font-semibold">
+              <BookOpen className="size-5" />
+              CollectionGeek
+            </Link>
+            {user && (
+              <nav className="hidden md:flex items-center gap-1 text-sm">
+                {navItems.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    className={({ isActive }) =>
+                      `rounded-md px-2.5 py-1.5 transition-colors ${
+                        isActive
+                          ? "bg-muted text-foreground"
+                          : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                      }`
+                    }
+                  >
+                    {item.label}
+                  </NavLink>
+                ))}
+              </nav>
+            )}
+          </div>
 
           {user && (
             <DropdownMenu>

@@ -50,11 +50,99 @@ export function deleteAccount(token: string) {
   return request<void>("/api/v1/users/me", { method: "DELETE", token });
 }
 
+// --- Asset Types ---
+
+export type DescriptorDataType =
+  | "text"
+  | "number"
+  | "date"
+  | "boolean"
+  | "select";
+
+export interface DescriptorInput {
+  name: string;
+  dataType: DescriptorDataType;
+  options?: string[];
+  required: boolean;
+  order: number;
+}
+
+export interface AssetTypePayload {
+  name: string;
+  description?: string;
+  descriptors?: DescriptorInput[];
+}
+
+export function createAssetType(token: string, data: AssetTypePayload) {
+  return request<{ id: string }>("/api/v1/asset-types", {
+    method: "POST",
+    token,
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateAssetType(
+  token: string,
+  id: string,
+  data: Partial<AssetTypePayload>
+) {
+  return request<void>(`/api/v1/asset-types/${id}`, {
+    method: "PUT",
+    token,
+    body: JSON.stringify(data),
+  });
+}
+
+export function deleteAssetType(token: string, id: string) {
+  return request<void>(`/api/v1/asset-types/${id}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
+// --- Collection Types ---
+
+export interface CollectionTypePayload {
+  name: string;
+  description?: string;
+  assetTypeIds?: string[];
+}
+
+export function createCollectionType(
+  token: string,
+  data: CollectionTypePayload
+) {
+  return request<{ id: string }>("/api/v1/collection-types", {
+    method: "POST",
+    token,
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateCollectionType(
+  token: string,
+  id: string,
+  data: Partial<CollectionTypePayload>
+) {
+  return request<void>(`/api/v1/collection-types/${id}`, {
+    method: "PUT",
+    token,
+    body: JSON.stringify(data),
+  });
+}
+
+export function deleteCollectionType(token: string, id: string) {
+  return request<void>(`/api/v1/collection-types/${id}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
 // --- Collections ---
 
 export function createCollection(
   token: string,
-  data: { name: string; description?: string; collectionType?: string }
+  data: { name: string; description?: string; collectionTypeId?: string }
 ) {
   return request<{ id: string }>("/api/v1/collections", {
     method: "POST",
@@ -66,7 +154,7 @@ export function createCollection(
 export function updateCollection(
   token: string,
   id: string,
-  data: { name?: string; description?: string; collectionType?: string }
+  data: { name?: string; description?: string; collectionTypeId?: string }
 ) {
   return request<void>(`/api/v1/collections/${id}`, {
     method: "PUT",
@@ -84,20 +172,21 @@ export function deleteCollection(token: string, id: string) {
 
 // --- Assets ---
 
+export interface DescriptorValueInput {
+  descriptorId: string;
+  value: string;
+}
+
 export interface AssetPayload {
-  collectionId: string;
+  assetTypeId?: string;
   name: string;
   description?: string;
   dateAcquired?: string;
   purchasedValue?: number;
   marketValue?: number;
   tags?: string[];
-  category?: string;
-  customFields?: Array<{
-    fieldName: string;
-    fieldValue: string;
-    fieldType: string;
-  }>;
+  collectionIds?: string[];
+  descriptorValues?: DescriptorValueInput[];
 }
 
 export function createAsset(token: string, data: AssetPayload) {
@@ -122,4 +211,27 @@ export function updateAsset(
 
 export function deleteAsset(token: string, id: string) {
   return request<void>(`/api/v1/assets/${id}`, { method: "DELETE", token });
+}
+
+export function addAssetToCollection(
+  token: string,
+  assetId: string,
+  collectionId: string
+) {
+  return request<void>(`/api/v1/assets/${assetId}/collections`, {
+    method: "POST",
+    token,
+    body: JSON.stringify({ collectionId }),
+  });
+}
+
+export function removeAssetFromCollection(
+  token: string,
+  assetId: string,
+  collectionId: string
+) {
+  return request<void>(
+    `/api/v1/assets/${assetId}/collections/${collectionId}`,
+    { method: "DELETE", token }
+  );
 }
