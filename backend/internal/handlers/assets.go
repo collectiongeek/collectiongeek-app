@@ -89,6 +89,10 @@ func (h *AssetsHandler) CreateAsset(w http.ResponseWriter, r *http.Request) {
 		ID string `json:"id"`
 	}
 	if err := h.convex.Mutation(r.Context(), "assets:createAsset", args, &result); err != nil {
+		if strings.Contains(err.Error(), "ArgumentValidationError") {
+			http.Error(w, "Invalid id in request", http.StatusBadRequest)
+			return
+		}
 		if strings.Contains(err.Error(), "Asset type not found") {
 			http.Error(w, "Asset type not found", http.StatusNotFound)
 			return
@@ -145,7 +149,13 @@ func (h *AssetsHandler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 		"assetId":      assetID,
 	}
 	if body.AssetTypeID != nil {
-		args["assetTypeId"] = *body.AssetTypeID
+		// Empty string from the frontend = "clear the type". Convex's updateAsset
+		// distinguishes null (clear) from undefined (leave unchanged), so map "" → nil.
+		if *body.AssetTypeID == "" {
+			args["assetTypeId"] = nil
+		} else {
+			args["assetTypeId"] = *body.AssetTypeID
+		}
 	}
 	if body.Name != nil {
 		name := strings.TrimSpace(*body.Name)
@@ -178,6 +188,10 @@ func (h *AssetsHandler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.convex.Mutation(r.Context(), "assets:updateAsset", args, nil); err != nil {
+		if strings.Contains(err.Error(), "ArgumentValidationError") {
+			http.Error(w, "Invalid id in request", http.StatusBadRequest)
+			return
+		}
 		if strings.Contains(err.Error(), "Asset type not found") {
 			http.Error(w, "Asset type not found", http.StatusNotFound)
 			return
@@ -219,6 +233,10 @@ func (h *AssetsHandler) DeleteAsset(w http.ResponseWriter, r *http.Request) {
 		"workosUserId": workosUserID,
 		"assetId":      assetID,
 	}, nil); err != nil {
+		if strings.Contains(err.Error(), "ArgumentValidationError") {
+			http.Error(w, "Invalid asset id", http.StatusBadRequest)
+			return
+		}
 		if strings.Contains(err.Error(), "Asset not found") {
 			http.Error(w, "Asset not found", http.StatusNotFound)
 			return
@@ -243,7 +261,12 @@ func (h *AssetsHandler) AddToCollection(w http.ResponseWriter, r *http.Request) 
 	var body struct {
 		CollectionID string `json:"collectionId"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.CollectionID == "" {
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	body.CollectionID = strings.TrimSpace(body.CollectionID)
+	if body.CollectionID == "" {
 		http.Error(w, "collectionId is required", http.StatusBadRequest)
 		return
 	}
@@ -253,6 +276,10 @@ func (h *AssetsHandler) AddToCollection(w http.ResponseWriter, r *http.Request) 
 		"assetId":      assetID,
 		"collectionId": body.CollectionID,
 	}, nil); err != nil {
+		if strings.Contains(err.Error(), "ArgumentValidationError") {
+			http.Error(w, "Invalid asset or collection id", http.StatusBadRequest)
+			return
+		}
 		if strings.Contains(err.Error(), "Asset not found") {
 			http.Error(w, "Asset not found", http.StatusNotFound)
 			return
@@ -284,6 +311,10 @@ func (h *AssetsHandler) RemoveFromCollection(w http.ResponseWriter, r *http.Requ
 		"assetId":      assetID,
 		"collectionId": collectionID,
 	}, nil); err != nil {
+		if strings.Contains(err.Error(), "ArgumentValidationError") {
+			http.Error(w, "Invalid asset or collection id", http.StatusBadRequest)
+			return
+		}
 		if strings.Contains(err.Error(), "Not authorized") {
 			http.Error(w, "Not authorized", http.StatusForbidden)
 			return

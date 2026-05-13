@@ -58,6 +58,10 @@ func (h *CollectionTypesHandler) CreateCollectionType(w http.ResponseWriter, r *
 		ID string `json:"id"`
 	}
 	if err := h.convex.Mutation(r.Context(), "collectionTypes:createCollectionType", args, &result); err != nil {
+		if strings.Contains(err.Error(), "ArgumentValidationError") {
+			http.Error(w, "Invalid asset type id", http.StatusBadRequest)
+			return
+		}
 		if strings.Contains(err.Error(), "Asset type not found") {
 			http.Error(w, "One or more asset types not found", http.StatusNotFound)
 			return
@@ -111,6 +115,10 @@ func (h *CollectionTypesHandler) UpdateCollectionType(w http.ResponseWriter, r *
 	}
 
 	if err := h.convex.Mutation(r.Context(), "collectionTypes:updateCollectionType", args, nil); err != nil {
+		if strings.Contains(err.Error(), "ArgumentValidationError") {
+			http.Error(w, "Invalid id in request", http.StatusBadRequest)
+			return
+		}
 		if strings.Contains(err.Error(), "Collection type not found") {
 			http.Error(w, "Collection type not found", http.StatusNotFound)
 			return
@@ -140,6 +148,10 @@ func (h *CollectionTypesHandler) DeleteCollectionType(w http.ResponseWriter, r *
 		"workosUserId":     workosUserID,
 		"collectionTypeId": collectionTypeID,
 	}, nil); err != nil {
+		if strings.Contains(err.Error(), "ArgumentValidationError") {
+			http.Error(w, "Invalid collection type id", http.StatusBadRequest)
+			return
+		}
 		if strings.Contains(err.Error(), "in use") {
 			http.Error(w, "Collection type is in use by one or more collections", http.StatusConflict)
 			return

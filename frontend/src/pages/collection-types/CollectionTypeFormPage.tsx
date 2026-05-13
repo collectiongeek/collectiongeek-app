@@ -30,10 +30,20 @@ function EditCollectionTypeLoader({ id }: { id: string }) {
   });
 
   if (data === undefined) return <Skeleton className="h-48 w-full max-w-2xl" />;
-  if (!data) return null;
+  if (!data) {
+    return (
+      <div className="text-center py-20">
+        <p className="text-muted-foreground">Collection type not found.</p>
+        <Button asChild className="mt-4">
+          <Link to="/collection-types">Back to collection types</Link>
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <CollectionTypeForm
+      key={id}
       mode="edit"
       collectionTypeId={id}
       initial={{

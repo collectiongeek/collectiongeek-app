@@ -58,6 +58,10 @@ func (h *CollectionsHandler) CreateCollection(w http.ResponseWriter, r *http.Req
 		ID string `json:"id"`
 	}
 	if err := h.convex.Mutation(r.Context(), "collections:createCollection", args, &result); err != nil {
+		if strings.Contains(err.Error(), "ArgumentValidationError") {
+			http.Error(w, "Invalid collection type id", http.StatusBadRequest)
+			return
+		}
 		// Match the specific resource so "User not found" (unexpected post-JWKS) doesn't
 		// surface as a misleading 404 about the collection type.
 		if strings.Contains(err.Error(), "Collection type not found") {
@@ -113,6 +117,10 @@ func (h *CollectionsHandler) UpdateCollection(w http.ResponseWriter, r *http.Req
 	}
 
 	if err := h.convex.Mutation(r.Context(), "collections:updateCollection", args, nil); err != nil {
+		if strings.Contains(err.Error(), "ArgumentValidationError") {
+			http.Error(w, "Invalid id in request", http.StatusBadRequest)
+			return
+		}
 		if strings.Contains(err.Error(), "Collection type not found") {
 			http.Error(w, "Collection type not found", http.StatusNotFound)
 			return
@@ -142,6 +150,10 @@ func (h *CollectionsHandler) DeleteCollection(w http.ResponseWriter, r *http.Req
 		"workosUserId": workosUserID,
 		"collectionId": collectionID,
 	}, nil); err != nil {
+		if strings.Contains(err.Error(), "ArgumentValidationError") {
+			http.Error(w, "Invalid collection id", http.StatusBadRequest)
+			return
+		}
 		if strings.Contains(err.Error(), "Collection not found") {
 			http.Error(w, "Collection not found", http.StatusNotFound)
 			return

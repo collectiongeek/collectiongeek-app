@@ -74,7 +74,16 @@ function EditAssetLoader({ id }: { id: string }) {
   });
 
   if (asset === undefined) return <Skeleton className="h-48 w-full max-w-2xl" />;
-  if (!asset) return null;
+  if (!asset) {
+    return (
+      <div className="text-center py-20">
+        <p className="text-muted-foreground">Asset not found.</p>
+        <Button asChild className="mt-4">
+          <Link to="/assets">All assets</Link>
+        </Button>
+      </div>
+    );
+  }
 
   const valuesById = new Map(
     asset.descriptorValues.map((v) => [v.descriptorId, v.value])
@@ -82,6 +91,7 @@ function EditAssetLoader({ id }: { id: string }) {
 
   return (
     <AssetForm
+      key={id}
       mode="edit"
       assetId={id}
       backHref={`/assets/${id}`}
@@ -183,7 +193,10 @@ function AssetForm({
           : [];
 
       const payload = {
-        assetTypeId: assetTypeId || undefined,
+        // Pass empty string through in edit mode so the backend can interpret
+        // it as "clear the asset type" (it translates "" → null for Convex).
+        // In create mode, the Go handler treats "" as omitted anyway.
+        assetTypeId: mode === "edit" ? assetTypeId : assetTypeId || undefined,
         name: form.name.trim(),
         description: form.description.trim() || undefined,
         dateAcquired: form.dateAcquired || undefined,

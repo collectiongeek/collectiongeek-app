@@ -58,7 +58,16 @@ function EditAssetTypeLoader({ id }: { id: string }) {
   });
 
   if (data === undefined) return <Skeleton className="h-48 w-full max-w-2xl" />;
-  if (!data) return null;
+  if (!data) {
+    return (
+      <div className="text-center py-20">
+        <p className="text-muted-foreground">Asset type not found.</p>
+        <Button asChild className="mt-4">
+          <Link to="/asset-types">Back to asset types</Link>
+        </Button>
+      </div>
+    );
+  }
 
   const initial = {
     name: data.name,
@@ -72,7 +81,7 @@ function EditAssetTypeLoader({ id }: { id: string }) {
       optionsRaw: d.options?.join(", ") ?? "",
     })),
   };
-  return <AssetTypeForm mode="edit" assetTypeId={id} initial={initial} />;
+  return <AssetTypeForm key={id} mode="edit" assetTypeId={id} initial={initial} />;
 }
 
 interface FormProps {
@@ -243,6 +252,7 @@ function AssetTypeForm({ mode, assetTypeId, initial }: FormProps) {
                       size="icon"
                       onClick={() => removeDescriptor(i)}
                       className="size-9 shrink-0"
+                      aria-label="Remove descriptor"
                     >
                       <X className="size-4" />
                     </Button>

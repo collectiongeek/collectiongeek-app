@@ -147,7 +147,12 @@ function CollectionDetail({ id }: { id: string }) {
                 <AlertDialog open={deletingId === asset._id} onOpenChange={(open) => !open && setDeletingId(null)}>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="size-7 opacity-0 group-hover:opacity-100 shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-7 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 shrink-0"
+                        aria-label={`Actions for ${asset.name}`}
+                      >
                         <MoreHorizontal className="size-4" />
                       </Button>
                     </DropdownMenuTrigger>

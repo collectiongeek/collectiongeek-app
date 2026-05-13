@@ -64,11 +64,14 @@ export const getCollectionValue = query({
       memberships.map((m) => ctx.db.get(m.assetId))
     );
 
-    const totalCents = assets.reduce(
-      (sum, a) => sum + (a && a.userId === user._id ? a.marketValue ?? 0 : 0),
+    const ownedAssets = assets.filter(
+      (a): a is NonNullable<typeof a> => a !== null && a.userId === user._id
+    );
+    const totalCents = ownedAssets.reduce(
+      (sum, a) => sum + (a.marketValue ?? 0),
       0
     );
-    return { totalCents, assetCount: assets.filter(Boolean).length };
+    return { totalCents, assetCount: ownedAssets.length };
   },
 });
 

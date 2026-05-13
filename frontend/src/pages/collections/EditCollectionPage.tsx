@@ -26,10 +26,20 @@ function EditCollectionLoader({ id }: { id: string }) {
   });
 
   if (collection === undefined) return <Skeleton className="h-48 w-full max-w-lg" />;
-  if (!collection) return null;
+  if (!collection) {
+    return (
+      <div className="text-center py-20">
+        <p className="text-muted-foreground">Collection not found.</p>
+        <Button asChild className="mt-4">
+          <Link to="/dashboard">Back to dashboard</Link>
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <EditCollectionForm
+      key={id}
       id={id}
       initial={{
         name: collection.name,

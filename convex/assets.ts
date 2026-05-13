@@ -196,7 +196,8 @@ export const updateAsset = internalMutation({
   args: {
     workosUserId: v.string(),
     assetId: v.id("assets"),
-    assetTypeId: v.optional(v.id("assetTypes")),
+    // null = clear the asset type; undefined = leave unchanged.
+    assetTypeId: v.optional(v.union(v.id("assetTypes"), v.null())),
     name: v.optional(v.string()),
     description: v.optional(v.string()),
     dateAcquired: v.optional(v.string()),
@@ -226,15 +227,23 @@ export const updateAsset = internalMutation({
     const asset = await ctx.db.get(assetId);
     if (!asset || asset.userId !== user._id) throw new Error("Asset not found");
 
-    if (assetTypeId !== undefined && assetTypeId) {
+    if (assetTypeId) {
       const at = await ctx.db.get(assetTypeId);
       if (!at || at.userId !== user._id)
         throw new Error("Asset type not found");
     }
 
+    // Compare the desired type to the existing one. `null` means clear, so
+    // normalize to `undefined` for the comparison.
+    const newType = assetTypeId === null ? undefined : assetTypeId;
+    const typeChanged =
+      assetTypeId !== undefined && newType !== asset.assetTypeId;
+
     await ctx.db.patch(assetId, {
       ...fields,
-      ...(assetTypeId !== undefined ? { assetTypeId } : {}),
+      // `assetTypeId: undefined` in a patch clears the optional field;
+      // omitting the key entirely leaves it unchanged.
+      ...(assetTypeId !== undefined ? { assetTypeId: newType } : {}),
       updatedAt: Date.now(),
     });
 
@@ -263,7 +272,7 @@ export const updateAsset = internalMutation({
 
     if (descriptorValues !== undefined) {
       const effectiveTypeId =
-        assetTypeId !== undefined ? assetTypeId : asset.assetTypeId;
+        assetTypeId !== undefined ? newType : asset.assetTypeId;
       if (descriptorValues.length > 0 && !effectiveTypeId) {
         throw new Error("Cannot set descriptor values without an asset type");
       }
@@ -286,6 +295,15 @@ export const updateAsset = internalMutation({
           })
         )
       );
+    } else if (typeChanged) {
+      // Type changed but the caller didn't pass replacement values — drop the
+      // stale ones so we don't end up with values pointing at the previous
+      // type's descriptors.
+      const existing = await ctx.db
+        .query("assetDescriptorValues")
+        .withIndex("by_asset", (q) => q.eq("assetId", assetId))
+        .collect();
+      await Promise.all(existing.map((v) => ctx.db.delete(v._id)));
     }
   },
 });

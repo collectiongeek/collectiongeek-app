@@ -148,6 +148,10 @@ func (h *AssetTypesHandler) UpdateAssetType(w http.ResponseWriter, r *http.Reque
 	}
 
 	if err := h.convex.Mutation(r.Context(), "assetTypes:updateAssetType", args, nil); err != nil {
+		if strings.Contains(err.Error(), "ArgumentValidationError") {
+			http.Error(w, "Invalid asset type id", http.StatusBadRequest)
+			return
+		}
 		if strings.Contains(err.Error(), "Asset type not found") {
 			http.Error(w, "Asset type not found", http.StatusNotFound)
 			return
@@ -173,6 +177,10 @@ func (h *AssetTypesHandler) DeleteAssetType(w http.ResponseWriter, r *http.Reque
 		"workosUserId": workosUserID,
 		"assetTypeId":  assetTypeID,
 	}, nil); err != nil {
+		if strings.Contains(err.Error(), "ArgumentValidationError") {
+			http.Error(w, "Invalid asset type id", http.StatusBadRequest)
+			return
+		}
 		if strings.Contains(err.Error(), "in use") {
 			http.Error(w, "Asset type is in use by one or more assets", http.StatusConflict)
 			return

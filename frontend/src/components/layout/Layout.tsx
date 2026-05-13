@@ -59,7 +59,7 @@ export function Layout() {
           {user && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon">
+                <Button variant="ghost" size="icon" aria-label="Account menu">
                   <User className="size-4" />
                 </Button>
               </DropdownMenuTrigger>

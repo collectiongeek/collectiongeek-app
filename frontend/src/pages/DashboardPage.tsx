@@ -189,7 +189,8 @@ export function DashboardPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="size-7 opacity-0 group-hover:opacity-100"
+                          className="size-7 opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                          aria-label={`Actions for ${col.name}`}
                         >
                           <MoreHorizontal className="size-4" />
                         </Button>
