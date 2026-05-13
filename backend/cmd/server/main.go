@@ -48,6 +48,8 @@ func main() {
 
 	// Route handlers.
 	usersH := handlers.NewUsersHandler(convex, workosAPIKey)
+	assetTypesH := handlers.NewAssetTypesHandler(convex)
+	collectionTypesH := handlers.NewCollectionTypesHandler(convex)
 	collectionsH := handlers.NewCollectionsHandler(convex)
 	assetsH := handlers.NewAssetsHandler(convex)
 
@@ -86,6 +88,16 @@ func main() {
 		r.Post("/users/me", usersH.UpsertUser)
 		r.Delete("/users/me", usersH.DeleteUser)
 
+		// Asset Types
+		r.Post("/asset-types", assetTypesH.CreateAssetType)
+		r.Put("/asset-types/{id}", assetTypesH.UpdateAssetType)
+		r.Delete("/asset-types/{id}", assetTypesH.DeleteAssetType)
+
+		// Collection Types
+		r.Post("/collection-types", collectionTypesH.CreateCollectionType)
+		r.Put("/collection-types/{id}", collectionTypesH.UpdateCollectionType)
+		r.Delete("/collection-types/{id}", collectionTypesH.DeleteCollectionType)
+
 		// Collections
 		r.Post("/collections", collectionsH.CreateCollection)
 		r.Put("/collections/{id}", collectionsH.UpdateCollection)
@@ -95,6 +107,8 @@ func main() {
 		r.Post("/assets", assetsH.CreateAsset)
 		r.Put("/assets/{id}", assetsH.UpdateAsset)
 		r.Delete("/assets/{id}", assetsH.DeleteAsset)
+		r.Post("/assets/{id}/collections", assetsH.AddToCollection)
+		r.Delete("/assets/{id}/collections/{collectionId}", assetsH.RemoveFromCollection)
 	})
 
 	port := os.Getenv("PORT")

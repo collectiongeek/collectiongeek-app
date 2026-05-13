@@ -19,22 +19,21 @@ func NewAssetsHandler(convex *convexclient.Client) *AssetsHandler {
 	return &AssetsHandler{convex: convex}
 }
 
-type customFieldInput struct {
-	FieldName  string `json:"fieldName"`
-	FieldValue string `json:"fieldValue"`
-	FieldType  string `json:"fieldType"`
+type descriptorValueInput struct {
+	DescriptorID string `json:"descriptorId"`
+	Value        string `json:"value"`
 }
 
 type createAssetBody struct {
-	CollectionID   string             `json:"collectionId"`
-	Name           string             `json:"name"`
-	Description    string             `json:"description"`
-	DateAcquired   string             `json:"dateAcquired"`
-	PurchasedValue *int64             `json:"purchasedValue"`
-	MarketValue    *int64             `json:"marketValue"`
-	Tags           []string           `json:"tags"`
-	Category       string             `json:"category"`
-	CustomFields   []customFieldInput `json:"customFields"`
+	AssetTypeID      string                 `json:"assetTypeId"`
+	Name             string                 `json:"name"`
+	Description      string                 `json:"description"`
+	DateAcquired     string                 `json:"dateAcquired"`
+	PurchasedValue   *int64                 `json:"purchasedValue"`
+	MarketValue      *int64                 `json:"marketValue"`
+	Tags             []string               `json:"tags"`
+	CollectionIDs    []string               `json:"collectionIds"`
+	DescriptorValues []descriptorValueInput `json:"descriptorValues"`
 }
 
 // POST /api/v1/assets
@@ -59,8 +58,10 @@ func (h *AssetsHandler) CreateAsset(w http.ResponseWriter, r *http.Request) {
 
 	args := map[string]any{
 		"workosUserId": workosUserID,
-		"collectionId": body.CollectionID,
 		"name":         body.Name,
+	}
+	if body.AssetTypeID != "" {
+		args["assetTypeId"] = body.AssetTypeID
 	}
 	if body.Description != "" {
 		args["description"] = strings.TrimSpace(body.Description)
@@ -77,19 +78,35 @@ func (h *AssetsHandler) CreateAsset(w http.ResponseWriter, r *http.Request) {
 	if len(body.Tags) > 0 {
 		args["tags"] = body.Tags
 	}
-	if body.Category != "" {
-		args["category"] = strings.TrimSpace(body.Category)
+	if len(body.CollectionIDs) > 0 {
+		args["collectionIds"] = body.CollectionIDs
 	}
-	if len(body.CustomFields) > 0 {
-		args["customFields"] = body.CustomFields
+	if len(body.DescriptorValues) > 0 {
+		args["descriptorValues"] = body.DescriptorValues
 	}
 
 	var result struct {
 		ID string `json:"id"`
 	}
 	if err := h.convex.Mutation(r.Context(), "assets:createAsset", args, &result); err != nil {
-		if strings.Contains(err.Error(), "not found") {
+		if strings.Contains(err.Error(), "ArgumentValidationError") {
+			http.Error(w, "Invalid id in request", http.StatusBadRequest)
+			return
+		}
+		if strings.Contains(err.Error(), "Asset type not found") {
+			http.Error(w, "Asset type not found", http.StatusNotFound)
+			return
+		}
+		if strings.Contains(err.Error(), "Collection not found") {
 			http.Error(w, "Collection not found", http.StatusNotFound)
+			return
+		}
+		if strings.Contains(err.Error(), "Cannot set descriptor values without an asset type") {
+			http.Error(w, "Cannot set descriptor values without an asset type", http.StatusBadRequest)
+			return
+		}
+		if strings.Contains(err.Error(), "Descriptor does not belong to asset type") {
+			http.Error(w, "Descriptor does not belong to the chosen asset type", http.StatusBadRequest)
 			return
 		}
 		http.Error(w, "Failed to create asset", http.StatusInternalServerError)
@@ -112,14 +129,15 @@ func (h *AssetsHandler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 	assetID := chi.URLParam(r, "id")
 
 	var body struct {
-		Name           *string            `json:"name"`
-		Description    *string            `json:"description"`
-		DateAcquired   *string            `json:"dateAcquired"`
-		PurchasedValue *int64             `json:"purchasedValue"`
-		MarketValue    *int64             `json:"marketValue"`
-		Tags           []string           `json:"tags"`
-		Category       *string            `json:"category"`
-		CustomFields   []customFieldInput `json:"customFields"`
+		AssetTypeID      *string                `json:"assetTypeId"`
+		Name             *string                `json:"name"`
+		Description      *string                `json:"description"`
+		DateAcquired     *string                `json:"dateAcquired"`
+		PurchasedValue   *int64                 `json:"purchasedValue"`
+		MarketValue      *int64                 `json:"marketValue"`
+		Tags             []string               `json:"tags"`
+		CollectionIDs    []string               `json:"collectionIds"`
+		DescriptorValues []descriptorValueInput `json:"descriptorValues"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
@@ -129,6 +147,15 @@ func (h *AssetsHandler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 	args := map[string]any{
 		"workosUserId": workosUserID,
 		"assetId":      assetID,
+	}
+	if body.AssetTypeID != nil {
+		// Empty string from the frontend = "clear the type". Convex's updateAsset
+		// distinguishes null (clear) from undefined (leave unchanged), so map "" → nil.
+		if *body.AssetTypeID == "" {
+			args["assetTypeId"] = nil
+		} else {
+			args["assetTypeId"] = *body.AssetTypeID
+		}
 	}
 	if body.Name != nil {
 		name := strings.TrimSpace(*body.Name)
@@ -153,16 +180,36 @@ func (h *AssetsHandler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 	if body.Tags != nil {
 		args["tags"] = body.Tags
 	}
-	if body.Category != nil {
-		args["category"] = strings.TrimSpace(*body.Category)
+	if body.CollectionIDs != nil {
+		args["collectionIds"] = body.CollectionIDs
 	}
-	if body.CustomFields != nil {
-		args["customFields"] = body.CustomFields
+	if body.DescriptorValues != nil {
+		args["descriptorValues"] = body.DescriptorValues
 	}
 
 	if err := h.convex.Mutation(r.Context(), "assets:updateAsset", args, nil); err != nil {
-		if strings.Contains(err.Error(), "not found") {
+		if strings.Contains(err.Error(), "ArgumentValidationError") {
+			http.Error(w, "Invalid id in request", http.StatusBadRequest)
+			return
+		}
+		if strings.Contains(err.Error(), "Asset type not found") {
+			http.Error(w, "Asset type not found", http.StatusNotFound)
+			return
+		}
+		if strings.Contains(err.Error(), "Collection not found") {
+			http.Error(w, "Collection not found", http.StatusNotFound)
+			return
+		}
+		if strings.Contains(err.Error(), "Asset not found") {
 			http.Error(w, "Asset not found", http.StatusNotFound)
+			return
+		}
+		if strings.Contains(err.Error(), "Cannot set descriptor values without an asset type") {
+			http.Error(w, "Cannot set descriptor values without an asset type", http.StatusBadRequest)
+			return
+		}
+		if strings.Contains(err.Error(), "Descriptor does not belong to asset type") {
+			http.Error(w, "Descriptor does not belong to the chosen asset type", http.StatusBadRequest)
 			return
 		}
 		http.Error(w, "Failed to update asset", http.StatusInternalServerError)
@@ -186,11 +233,93 @@ func (h *AssetsHandler) DeleteAsset(w http.ResponseWriter, r *http.Request) {
 		"workosUserId": workosUserID,
 		"assetId":      assetID,
 	}, nil); err != nil {
-		if strings.Contains(err.Error(), "not found") {
+		if strings.Contains(err.Error(), "ArgumentValidationError") {
+			http.Error(w, "Invalid asset id", http.StatusBadRequest)
+			return
+		}
+		if strings.Contains(err.Error(), "Asset not found") {
 			http.Error(w, "Asset not found", http.StatusNotFound)
 			return
 		}
 		http.Error(w, "Failed to delete asset", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// POST /api/v1/assets/:id/collections — body: { collectionId: string }
+func (h *AssetsHandler) AddToCollection(w http.ResponseWriter, r *http.Request) {
+	workosUserID := middleware.WorkOSUserID(r)
+	if workosUserID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	assetID := chi.URLParam(r, "id")
+
+	var body struct {
+		CollectionID string `json:"collectionId"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	body.CollectionID = strings.TrimSpace(body.CollectionID)
+	if body.CollectionID == "" {
+		http.Error(w, "collectionId is required", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.convex.Mutation(r.Context(), "assets:addAssetToCollection", map[string]any{
+		"workosUserId": workosUserID,
+		"assetId":      assetID,
+		"collectionId": body.CollectionID,
+	}, nil); err != nil {
+		if strings.Contains(err.Error(), "ArgumentValidationError") {
+			http.Error(w, "Invalid asset or collection id", http.StatusBadRequest)
+			return
+		}
+		if strings.Contains(err.Error(), "Asset not found") {
+			http.Error(w, "Asset not found", http.StatusNotFound)
+			return
+		}
+		if strings.Contains(err.Error(), "Collection not found") {
+			http.Error(w, "Collection not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Failed to add asset to collection", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// DELETE /api/v1/assets/:id/collections/:collectionId
+func (h *AssetsHandler) RemoveFromCollection(w http.ResponseWriter, r *http.Request) {
+	workosUserID := middleware.WorkOSUserID(r)
+	if workosUserID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	assetID := chi.URLParam(r, "id")
+	collectionID := chi.URLParam(r, "collectionId")
+
+	if err := h.convex.Mutation(r.Context(), "assets:removeAssetFromCollection", map[string]any{
+		"workosUserId": workosUserID,
+		"assetId":      assetID,
+		"collectionId": collectionID,
+	}, nil); err != nil {
+		if strings.Contains(err.Error(), "ArgumentValidationError") {
+			http.Error(w, "Invalid asset or collection id", http.StatusBadRequest)
+			return
+		}
+		if strings.Contains(err.Error(), "Not authorized") {
+			http.Error(w, "Not authorized", http.StatusForbidden)
+			return
+		}
+		http.Error(w, "Failed to remove asset from collection", http.StatusInternalServerError)
 		return
 	}
 

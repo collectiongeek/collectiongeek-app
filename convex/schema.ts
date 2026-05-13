@@ -12,41 +12,95 @@ export default defineSchema({
     .index("by_username", ["username"])
     .index("by_email", ["email"]),
 
-  collections: defineTable({
+  assetTypes: defineTable({
     userId: v.id("users"),
     name: v.string(),
     description: v.optional(v.string()),
-    collectionType: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
     .index("by_user_and_name", ["userId", "name"]),
 
+  assetTypeDescriptors: defineTable({
+    assetTypeId: v.id("assetTypes"),
+    name: v.string(),
+    dataType: v.union(
+      v.literal("text"),
+      v.literal("number"),
+      v.literal("date"),
+      v.literal("boolean"),
+      v.literal("select")
+    ),
+    options: v.optional(v.array(v.string())),
+    required: v.boolean(),
+    order: v.number(),
+  }).index("by_asset_type", ["assetTypeId"]),
+
+  collectionTypes: defineTable({
+    userId: v.id("users"),
+    name: v.string(),
+    description: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_and_name", ["userId", "name"]),
+
+  collectionTypeAssetTypes: defineTable({
+    collectionTypeId: v.id("collectionTypes"),
+    assetTypeId: v.id("assetTypes"),
+  })
+    .index("by_collection_type", ["collectionTypeId"])
+    .index("by_asset_type", ["assetTypeId"]),
+
+  collections: defineTable({
+    userId: v.id("users"),
+    collectionTypeId: v.optional(v.id("collectionTypes")),
+    name: v.string(),
+    description: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_and_name", ["userId", "name"])
+    .index("by_collection_type", ["collectionTypeId"]),
+
   assets: defineTable({
     userId: v.id("users"),
-    collectionId: v.id("collections"),
+    assetTypeId: v.optional(v.id("assetTypes")),
     name: v.string(),
     description: v.optional(v.string()),
     dateAcquired: v.optional(v.string()),
     purchasedValue: v.optional(v.number()),
     marketValue: v.optional(v.number()),
     tags: v.optional(v.array(v.string())),
-    category: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
-    .index("by_collection", ["collectionId"])
     .index("by_user", ["userId"])
+    .index("by_asset_type", ["assetTypeId"])
     .searchIndex("search_assets", {
       searchField: "name",
-      filterFields: ["userId", "collectionId"],
+      filterFields: ["userId"],
     }),
 
-  customFields: defineTable({
+  assetCollections: defineTable({
     assetId: v.id("assets"),
-    fieldName: v.string(),
-    fieldValue: v.string(),
-    fieldType: v.string(),
-  }).index("by_asset", ["assetId"]),
+    collectionId: v.id("collections"),
+    userId: v.id("users"),
+    addedAt: v.number(),
+  })
+    .index("by_asset", ["assetId"])
+    .index("by_collection", ["collectionId"])
+    .index("by_user", ["userId"])
+    .index("by_asset_and_collection", ["assetId", "collectionId"]),
+
+  assetDescriptorValues: defineTable({
+    assetId: v.id("assets"),
+    descriptorId: v.id("assetTypeDescriptors"),
+    value: v.string(),
+  })
+    .index("by_asset", ["assetId"])
+    .index("by_descriptor", ["descriptorId"]),
 });

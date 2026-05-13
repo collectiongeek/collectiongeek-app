@@ -23,13 +23,18 @@ import { toast } from "sonner";
 
 export function CollectionDetailPage() {
   const { id } = useParams<{ id: string }>();
+  if (!id) return null;
+  return <CollectionDetail id={id} />;
+}
+
+function CollectionDetail({ id }: { id: string }) {
   const { getAccessToken } = useAuth();
   const navigate = useNavigate();
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const collectionId = id as Id<"collections">;
   const collection = useQuery(api.collections.getCollection, { collectionId });
-  const assets = useQuery(api.assets.listAssets, { collectionId });
+  const assets = useQuery(api.assets.listAssetsInCollection, { collectionId });
   const valueData = useQuery(api.collections.getCollectionValue, { collectionId });
 
   async function handleDeleteAsset(assetId: string) {
@@ -76,7 +81,11 @@ export function CollectionDetailPage() {
             )}
             <div className="flex items-center gap-2 mt-2">
               {collection.collectionType && (
-                <Badge variant="secondary">{collection.collectionType}</Badge>
+                <Link to={`/collection-types/${collection.collectionType._id}`}>
+                  <Badge variant="secondary" className="cursor-pointer hover:bg-muted">
+                    {collection.collectionType.name}
+                  </Badge>
+                </Link>
               )}
               {valueData && (
                 <span className="text-sm text-muted-foreground">
@@ -115,9 +124,9 @@ export function CollectionDetailPage() {
           {assets.map((asset: Doc<"assets">) => (
             <div key={asset._id} className="group relative rounded-xl border bg-card p-4 hover:shadow-sm transition-shadow">
               <div className="flex items-start justify-between gap-2">
-                <div
-                  className="flex-1 cursor-pointer min-w-0"
-                  onClick={() => navigate(`/assets/${asset._id}`)}
+                <Link
+                  to={`/assets/${asset._id}`}
+                  className="flex-1 min-w-0 no-underline text-inherit focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
                 >
                   <p className="font-medium leading-tight truncate">{asset.name}</p>
                   {asset.description && (
@@ -133,12 +142,17 @@ export function CollectionDetailPage() {
                       ))}
                     </div>
                   )}
-                </div>
+                </Link>
 
                 <AlertDialog open={deletingId === asset._id} onOpenChange={(open) => !open && setDeletingId(null)}>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="size-7 opacity-0 group-hover:opacity-100 shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-7 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 shrink-0"
+                        aria-label={`Actions for ${asset.name}`}
+                      >
                         <MoreHorizontal className="size-4" />
                       </Button>
                     </DropdownMenuTrigger>
@@ -161,7 +175,7 @@ export function CollectionDetailPage() {
                     <AlertDialogHeader>
                       <AlertDialogTitle>Delete asset?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        This will permanently delete <strong>{asset.name}</strong> and all its custom fields.
+                        This will permanently delete <strong>{asset.name}</strong> and remove it from all collections.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

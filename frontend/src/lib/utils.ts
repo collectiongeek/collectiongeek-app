@@ -13,9 +13,15 @@ export function formatCents(cents: number): string {
 }
 
 export function formatDate(iso: string): string {
+  // Bare YYYY-MM-DD has no timezone — parse as local, not UTC,
+  // so the displayed day matches what the user typed in <input type="date">.
+  const bareDate = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  const date = bareDate
+    ? new Date(Number(bareDate[1]), Number(bareDate[2]) - 1, Number(bareDate[3]))
+    : new Date(iso);
   return new Intl.DateTimeFormat("en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
-  }).format(new Date(iso));
+  }).format(date);
 }

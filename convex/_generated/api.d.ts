@@ -8,7 +8,10 @@
  * @module
  */
 
+import type * as assetTypes from "../assetTypes.js";
 import type * as assets from "../assets.js";
+import type * as auth from "../auth.js";
+import type * as collectionTypes from "../collectionTypes.js";
 import type * as collections from "../collections.js";
 import type * as http from "../http.js";
 import type * as users from "../users.js";
@@ -20,7 +23,10 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  assetTypes: typeof assetTypes;
   assets: typeof assets;
+  auth: typeof auth;
+  collectionTypes: typeof collectionTypes;
   collections: typeof collections;
   http: typeof http;
   users: typeof users;

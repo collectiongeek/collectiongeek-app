@@ -11,16 +11,16 @@ import (
 	"github.com/collectiongeek/collectiongeek-app/backend/internal/middleware"
 )
 
-type CollectionsHandler struct {
+type CollectionTypesHandler struct {
 	convex *convexclient.Client
 }
 
-func NewCollectionsHandler(convex *convexclient.Client) *CollectionsHandler {
-	return &CollectionsHandler{convex: convex}
+func NewCollectionTypesHandler(convex *convexclient.Client) *CollectionTypesHandler {
+	return &CollectionTypesHandler{convex: convex}
 }
 
-// POST /api/v1/collections
-func (h *CollectionsHandler) CreateCollection(w http.ResponseWriter, r *http.Request) {
+// POST /api/v1/collection-types
+func (h *CollectionTypesHandler) CreateCollectionType(w http.ResponseWriter, r *http.Request) {
 	workosUserID := middleware.WorkOSUserID(r)
 	if workosUserID == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -28,9 +28,9 @@ func (h *CollectionsHandler) CreateCollection(w http.ResponseWriter, r *http.Req
 	}
 
 	var body struct {
-		Name             string `json:"name"`
-		Description      string `json:"description"`
-		CollectionTypeID string `json:"collectionTypeId"`
+		Name         string   `json:"name"`
+		Description  string   `json:"description"`
+		AssetTypeIDs []string `json:"assetTypeIds"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
@@ -50,25 +50,23 @@ func (h *CollectionsHandler) CreateCollection(w http.ResponseWriter, r *http.Req
 	if body.Description != "" {
 		args["description"] = strings.TrimSpace(body.Description)
 	}
-	if body.CollectionTypeID != "" {
-		args["collectionTypeId"] = body.CollectionTypeID
+	if len(body.AssetTypeIDs) > 0 {
+		args["assetTypeIds"] = body.AssetTypeIDs
 	}
 
 	var result struct {
 		ID string `json:"id"`
 	}
-	if err := h.convex.Mutation(r.Context(), "collections:createCollection", args, &result); err != nil {
+	if err := h.convex.Mutation(r.Context(), "collectionTypes:createCollectionType", args, &result); err != nil {
 		if strings.Contains(err.Error(), "ArgumentValidationError") {
-			http.Error(w, "Invalid collection type id", http.StatusBadRequest)
+			http.Error(w, "Invalid asset type id", http.StatusBadRequest)
 			return
 		}
-		// Match the specific resource so "User not found" (unexpected post-JWKS) doesn't
-		// surface as a misleading 404 about the collection type.
-		if strings.Contains(err.Error(), "Collection type not found") {
-			http.Error(w, "Collection type not found", http.StatusNotFound)
+		if strings.Contains(err.Error(), "Asset type not found") {
+			http.Error(w, "One or more asset types not found", http.StatusNotFound)
 			return
 		}
-		http.Error(w, "Failed to create collection", http.StatusInternalServerError)
+		http.Error(w, "Failed to create collection type", http.StatusInternalServerError)
 		return
 	}
 
@@ -77,20 +75,20 @@ func (h *CollectionsHandler) CreateCollection(w http.ResponseWriter, r *http.Req
 	_ = json.NewEncoder(w).Encode(result)
 }
 
-// PUT /api/v1/collections/:id
-func (h *CollectionsHandler) UpdateCollection(w http.ResponseWriter, r *http.Request) {
+// PUT /api/v1/collection-types/:id
+func (h *CollectionTypesHandler) UpdateCollectionType(w http.ResponseWriter, r *http.Request) {
 	workosUserID := middleware.WorkOSUserID(r)
 	if workosUserID == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	collectionID := chi.URLParam(r, "id")
+	collectionTypeID := chi.URLParam(r, "id")
 
 	var body struct {
-		Name             *string `json:"name"`
-		Description      *string `json:"description"`
-		CollectionTypeID *string `json:"collectionTypeId"`
+		Name         *string  `json:"name"`
+		Description  *string  `json:"description"`
+		AssetTypeIDs []string `json:"assetTypeIds"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
@@ -98,8 +96,8 @@ func (h *CollectionsHandler) UpdateCollection(w http.ResponseWriter, r *http.Req
 	}
 
 	args := map[string]any{
-		"workosUserId": workosUserID,
-		"collectionId": collectionID,
+		"workosUserId":     workosUserID,
+		"collectionTypeId": collectionTypeID,
 	}
 	if body.Name != nil {
 		name := strings.TrimSpace(*body.Name)
@@ -112,11 +110,11 @@ func (h *CollectionsHandler) UpdateCollection(w http.ResponseWriter, r *http.Req
 	if body.Description != nil {
 		args["description"] = strings.TrimSpace(*body.Description)
 	}
-	if body.CollectionTypeID != nil {
-		args["collectionTypeId"] = *body.CollectionTypeID
+	if body.AssetTypeIDs != nil {
+		args["assetTypeIds"] = body.AssetTypeIDs
 	}
 
-	if err := h.convex.Mutation(r.Context(), "collections:updateCollection", args, nil); err != nil {
+	if err := h.convex.Mutation(r.Context(), "collectionTypes:updateCollectionType", args, nil); err != nil {
 		if strings.Contains(err.Error(), "ArgumentValidationError") {
 			http.Error(w, "Invalid id in request", http.StatusBadRequest)
 			return
@@ -125,40 +123,44 @@ func (h *CollectionsHandler) UpdateCollection(w http.ResponseWriter, r *http.Req
 			http.Error(w, "Collection type not found", http.StatusNotFound)
 			return
 		}
-		if strings.Contains(err.Error(), "Collection not found") {
-			http.Error(w, "Collection not found", http.StatusNotFound)
+		if strings.Contains(err.Error(), "Asset type not found") {
+			http.Error(w, "One or more asset types not found", http.StatusNotFound)
 			return
 		}
-		http.Error(w, "Failed to update collection", http.StatusInternalServerError)
+		http.Error(w, "Failed to update collection type", http.StatusInternalServerError)
 		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// DELETE /api/v1/collections/:id
-func (h *CollectionsHandler) DeleteCollection(w http.ResponseWriter, r *http.Request) {
+// DELETE /api/v1/collection-types/:id
+func (h *CollectionTypesHandler) DeleteCollectionType(w http.ResponseWriter, r *http.Request) {
 	workosUserID := middleware.WorkOSUserID(r)
 	if workosUserID == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	collectionID := chi.URLParam(r, "id")
+	collectionTypeID := chi.URLParam(r, "id")
 
-	if err := h.convex.Mutation(r.Context(), "collections:deleteCollection", map[string]any{
-		"workosUserId": workosUserID,
-		"collectionId": collectionID,
+	if err := h.convex.Mutation(r.Context(), "collectionTypes:deleteCollectionType", map[string]any{
+		"workosUserId":     workosUserID,
+		"collectionTypeId": collectionTypeID,
 	}, nil); err != nil {
 		if strings.Contains(err.Error(), "ArgumentValidationError") {
-			http.Error(w, "Invalid collection id", http.StatusBadRequest)
+			http.Error(w, "Invalid collection type id", http.StatusBadRequest)
 			return
 		}
-		if strings.Contains(err.Error(), "Collection not found") {
-			http.Error(w, "Collection not found", http.StatusNotFound)
+		if strings.Contains(err.Error(), "in use") {
+			http.Error(w, "Collection type is in use by one or more collections", http.StatusConflict)
 			return
 		}
-		http.Error(w, "Failed to delete collection", http.StatusInternalServerError)
+		if strings.Contains(err.Error(), "Collection type not found") {
+			http.Error(w, "Collection type not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Failed to delete collection type", http.StatusInternalServerError)
 		return
 	}
 

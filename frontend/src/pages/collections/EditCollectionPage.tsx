@@ -14,32 +14,54 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
 
-const COLLECTION_TYPES = [
-  "Coins", "Stamps", "Trading cards", "Books", "Vinyl records",
-  "Comics", "Art", "Watches", "Jewelry", "Sneakers", "Other",
-];
-
 export function EditCollectionPage() {
   const { id } = useParams<{ id: string }>();
+  if (!id) return null;
+  return <EditCollectionLoader id={id} />;
+}
+
+function EditCollectionLoader({ id }: { id: string }) {
   const collection = useQuery(api.collections.getCollection, {
     collectionId: id as Id<"collections">,
   });
 
   if (collection === undefined) return <Skeleton className="h-48 w-full max-w-lg" />;
-  if (!collection) return null;
+  if (!collection) {
+    return (
+      <div className="text-center py-20">
+        <p className="text-muted-foreground">Collection not found.</p>
+        <Button asChild className="mt-4">
+          <Link to="/dashboard">Back to dashboard</Link>
+        </Button>
+      </div>
+    );
+  }
 
-  return <EditCollectionForm id={id!} collection={collection} />;
+  return (
+    <EditCollectionForm
+      key={id}
+      id={id}
+      initial={{
+        name: collection.name,
+        description: collection.description ?? "",
+        collectionTypeId: collection.collectionTypeId ?? "",
+      }}
+    />
+  );
 }
 
-function EditCollectionForm({ id, collection }: { id: string; collection: Doc<"collections"> }) {
+interface InitialForm {
+  name: string;
+  description: string;
+  collectionTypeId: string;
+}
+
+function EditCollectionForm({ id, initial }: { id: string; initial: InitialForm }) {
   const { getAccessToken } = useAuth();
   const navigate = useNavigate();
+  const collectionTypes = useQuery(api.collectionTypes.listCollectionTypes);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    name: collection.name,
-    description: collection.description ?? "",
-    collectionType: collection.collectionType ?? "",
-  });
+  const [form, setForm] = useState(initial);
 
   function set(field: keyof typeof form, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -55,7 +77,7 @@ function EditCollectionForm({ id, collection }: { id: string; collection: Doc<"c
       await updateCollection(token, id, {
         name: form.name.trim(),
         description: form.description.trim() || undefined,
-        collectionType: form.collectionType || undefined,
+        collectionTypeId: form.collectionTypeId || undefined,
       });
       toast.success("Collection updated");
       navigate(`/collections/${id}`);
@@ -92,13 +114,13 @@ function EditCollectionForm({ id, collection }: { id: string; collection: Doc<"c
               <Label htmlFor="type">Collection type</Label>
               <select
                 id="type"
-                value={form.collectionType}
-                onChange={(e) => set("collectionType", e.target.value)}
+                value={form.collectionTypeId}
+                onChange={(e) => set("collectionTypeId", e.target.value)}
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
-                <option value="">Select a type…</option>
-                {COLLECTION_TYPES.map((t) => (
-                  <option key={t} value={t.toLowerCase()}>{t}</option>
+                <option value="">Untyped</option>
+                {(collectionTypes ?? []).map((ct: Doc<"collectionTypes">) => (
+                  <option key={ct._id} value={ct._id}>{ct.name}</option>
                 ))}
               </select>
             </div>

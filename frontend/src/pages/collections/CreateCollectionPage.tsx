@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { useQuery } from "convex/react";
 import { useAuth } from "@workos-inc/authkit-react";
+import { api } from "@convex-gen/api";
+import type { Doc } from "@convex-gen/dataModel";
 import { createCollection } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,19 +13,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
 
-const COLLECTION_TYPES = [
-  "Coins", "Stamps", "Trading cards", "Books", "Vinyl records",
-  "Comics", "Art", "Watches", "Jewelry", "Sneakers", "Other",
-];
-
 export function CreateCollectionPage() {
   const { getAccessToken } = useAuth();
   const navigate = useNavigate();
+  const collectionTypes = useQuery(api.collectionTypes.listCollectionTypes);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     name: "",
     description: "",
-    collectionType: "",
+    collectionTypeId: "",
   });
 
   function set(field: keyof typeof form, value: string) {
@@ -39,7 +38,7 @@ export function CreateCollectionPage() {
       const { id } = await createCollection(token, {
         name: form.name.trim(),
         description: form.description.trim() || undefined,
-        collectionType: form.collectionType || undefined,
+        collectionTypeId: form.collectionTypeId || undefined,
       });
       toast.success("Collection created");
       navigate(`/collections/${id}`);
@@ -93,17 +92,23 @@ export function CreateCollectionPage() {
               <Label htmlFor="type">Collection type</Label>
               <select
                 id="type"
-                value={form.collectionType}
-                onChange={(e) => set("collectionType", e.target.value)}
+                value={form.collectionTypeId}
+                onChange={(e) => set("collectionTypeId", e.target.value)}
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
-                <option value="">Select a type…</option>
-                {COLLECTION_TYPES.map((t) => (
-                  <option key={t} value={t.toLowerCase()}>
-                    {t}
+                <option value="">Untyped</option>
+                {(collectionTypes ?? []).map((ct: Doc<"collectionTypes">) => (
+                  <option key={ct._id} value={ct._id}>
+                    {ct.name}
                   </option>
                 ))}
               </select>
+              <p className="text-xs text-muted-foreground">
+                <Link to="/collection-types/new" className="underline">
+                  Create a new collection type
+                </Link>{" "}
+                if you don't see the one you need.
+              </p>
             </div>
 
             <div className="flex justify-end gap-2 pt-2">

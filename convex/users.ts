@@ -69,6 +69,68 @@ export const updateUser = internalMutation({
   },
 });
 
+async function cascadeDeleteUser(ctx: any, userId: any) {
+  // Sweep all asset↔collection join rows for this user up front. The by_user
+  // index makes this a single query and avoids leaving orphans when assets or
+  // collections are deleted below.
+  const memberships = await ctx.db
+    .query("assetCollections")
+    .withIndex("by_user", (q: any) => q.eq("userId", userId))
+    .collect();
+  await Promise.all(memberships.map((m: any) => ctx.db.delete(m._id)));
+
+  const assets = await ctx.db
+    .query("assets")
+    .withIndex("by_user", (q: any) => q.eq("userId", userId))
+    .collect();
+
+  for (const asset of assets) {
+    const values = await ctx.db
+      .query("assetDescriptorValues")
+      .withIndex("by_asset", (q: any) => q.eq("assetId", asset._id))
+      .collect();
+    await Promise.all(values.map((v: any) => ctx.db.delete(v._id)));
+
+    await ctx.db.delete(asset._id);
+  }
+
+  const collections = await ctx.db
+    .query("collections")
+    .withIndex("by_user", (q: any) => q.eq("userId", userId))
+    .collect();
+  await Promise.all(collections.map((c: any) => ctx.db.delete(c._id)));
+
+  const assetTypes = await ctx.db
+    .query("assetTypes")
+    .withIndex("by_user", (q: any) => q.eq("userId", userId))
+    .collect();
+  for (const at of assetTypes) {
+    const descriptors = await ctx.db
+      .query("assetTypeDescriptors")
+      .withIndex("by_asset_type", (q: any) => q.eq("assetTypeId", at._id))
+      .collect();
+    await Promise.all(descriptors.map((d: any) => ctx.db.delete(d._id)));
+    await ctx.db.delete(at._id);
+  }
+
+  const collectionTypes = await ctx.db
+    .query("collectionTypes")
+    .withIndex("by_user", (q: any) => q.eq("userId", userId))
+    .collect();
+  for (const ct of collectionTypes) {
+    const assocs = await ctx.db
+      .query("collectionTypeAssetTypes")
+      .withIndex("by_collection_type", (q: any) =>
+        q.eq("collectionTypeId", ct._id)
+      )
+      .collect();
+    await Promise.all(assocs.map((a: any) => ctx.db.delete(a._id)));
+    await ctx.db.delete(ct._id);
+  }
+
+  await ctx.db.delete(userId);
+}
+
 // Called by Go backend: deletes the user and all their data in dependency order.
 export const deleteUserCascade = internalMutation({
   args: { workosUserId: v.string() },
@@ -78,28 +140,7 @@ export const deleteUserCascade = internalMutation({
       .withIndex("by_workos_id", (q) => q.eq("workosUserId", workosUserId))
       .unique();
     if (!user) return;
-
-    const assets = await ctx.db
-      .query("assets")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
-      .collect();
-
-    for (const asset of assets) {
-      const fields = await ctx.db
-        .query("customFields")
-        .withIndex("by_asset", (q) => q.eq("assetId", asset._id))
-        .collect();
-      await Promise.all(fields.map((f) => ctx.db.delete(f._id)));
-      await ctx.db.delete(asset._id);
-    }
-
-    const collections = await ctx.db
-      .query("collections")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
-      .collect();
-    await Promise.all(collections.map((c) => ctx.db.delete(c._id)));
-
-    await ctx.db.delete(user._id);
+    await cascadeDeleteUser(ctx, user._id);
   },
 });
 
@@ -129,33 +170,11 @@ export const createUserFromWebhook = internalMutation({
 export const deleteUserFromWebhook = internalMutation({
   args: { workosUserId: v.string() },
   handler: async (ctx, { workosUserId }) => {
-    // Reuse cascade logic by calling directly
     const user = await ctx.db
       .query("users")
       .withIndex("by_workos_id", (q) => q.eq("workosUserId", workosUserId))
       .unique();
     if (!user) return;
-
-    const assets = await ctx.db
-      .query("assets")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
-      .collect();
-
-    for (const asset of assets) {
-      const fields = await ctx.db
-        .query("customFields")
-        .withIndex("by_asset", (q) => q.eq("assetId", asset._id))
-        .collect();
-      await Promise.all(fields.map((f) => ctx.db.delete(f._id)));
-      await ctx.db.delete(asset._id);
-    }
-
-    const collections = await ctx.db
-      .query("collections")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
-      .collect();
-    await Promise.all(collections.map((c) => ctx.db.delete(c._id)));
-
-    await ctx.db.delete(user._id);
+    await cascadeDeleteUser(ctx, user._id);
   },
 });

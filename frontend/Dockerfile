@@ -9,7 +9,10 @@ COPY frontend/package.json frontend/package-lock.json ./frontend/
 RUN cd frontend && npm ci && ln -s /workspace/frontend/node_modules /workspace/node_modules
 
 COPY frontend/ ./frontend/
-COPY convex/_generated/ ./convex/_generated/
+# The Convex sources are needed at build time: _generated/api.d.ts re-imports them
+# (e.g. `import type * as assets from "../assets.js"`) so TypeScript can infer
+# query/mutation return types. They are not bundled into the frontend output.
+COPY convex/ ./convex/
 
 RUN cd frontend && npm run build
 
