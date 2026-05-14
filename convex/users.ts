@@ -45,6 +45,28 @@ export const upsertUser = internalMutation({
   },
 });
 
+// Called by Go backend: persists the user's UI theme + mode preference.
+export const updateTheme = internalMutation({
+  args: {
+    workosUserId: v.string(),
+    theme: v.optional(v.string()),
+    themeMode: v.optional(
+      v.union(v.literal("light"), v.literal("dark"), v.literal("system"))
+    ),
+  },
+  handler: async (ctx, { workosUserId, theme, themeMode }) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_workos_id", (q) => q.eq("workosUserId", workosUserId))
+      .unique();
+    if (!user) throw new Error("User not found");
+    const patch: Record<string, unknown> = {};
+    if (theme !== undefined) patch.theme = theme;
+    if (themeMode !== undefined) patch.themeMode = themeMode;
+    if (Object.keys(patch).length > 0) await ctx.db.patch(user._id, patch);
+  },
+});
+
 // Called by Go backend: sets or updates a user's username.
 export const updateUser = internalMutation({
   args: {

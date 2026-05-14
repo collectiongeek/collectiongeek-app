@@ -86,6 +86,7 @@ func main() {
 
 		// Users
 		r.Post("/users/me", usersH.UpsertUser)
+		r.Put("/users/me/theme", usersH.UpdateTheme)
 		r.Delete("/users/me", usersH.DeleteUser)
 
 		// Asset Types

@@ -163,7 +163,6 @@ function CollectionDetail({ id }: { id: string }) {
                       <DropdownMenuSeparator />
                       <AlertDialogTrigger asChild>
                         <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
                           onClick={() => setDeletingId(asset._id)}
                         >
                           <Trash2 className="size-4" />Delete
@@ -181,7 +180,6 @@ function CollectionDetail({ id }: { id: string }) {
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
                       <AlertDialogAction
-                        className="bg-destructive text-white hover:bg-destructive/90"
                         onClick={() => handleDeleteAsset(asset._id)}
                       >Delete</AlertDialogAction>
                     </AlertDialogFooter>

@@ -99,7 +99,7 @@ export function AssetTypesListPage() {
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <AlertDialogTrigger asChild>
-                        <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeletingId(at._id)}>
+                        <DropdownMenuItem onClick={() => setDeletingId(at._id)}>
                           <Trash2 className="size-4" />Delete
                         </DropdownMenuItem>
                       </AlertDialogTrigger>
@@ -114,7 +114,7 @@ export function AssetTypesListPage() {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction className="bg-destructive text-white hover:bg-destructive/90" onClick={() => handleDelete(at._id)}>
+                      <AlertDialogAction onClick={() => handleDelete(at._id)}>
                         Delete
                       </AlertDialogAction>
                     </AlertDialogFooter>

@@ -87,8 +87,8 @@ export function SettingsPage() {
 
       {/* Danger zone */}
       <section className="space-y-4">
-        <h2 className="text-base font-semibold text-destructive">Danger zone</h2>
-        <div className="rounded-lg border border-destructive/30 p-4">
+        <h2 className="text-base font-semibold">Danger zone</h2>
+        <div className="rounded-lg border p-4">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="font-medium text-sm">Delete account</p>
@@ -99,7 +99,7 @@ export function SettingsPage() {
             </div>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="sm" disabled={deleting}>
+                <Button variant="outline" size="sm" disabled={deleting}>
                   Delete account
                 </Button>
               </AlertDialogTrigger>
@@ -115,7 +115,6 @@ export function SettingsPage() {
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                   <AlertDialogAction
-                    className="bg-destructive text-white hover:bg-destructive/90"
                     onClick={handleDeleteAccount}
                     disabled={deleting}
                   >

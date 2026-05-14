@@ -115,7 +115,7 @@ function AssetDetail({ id }: { id: string }) {
             </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="outline" size="sm" className="text-destructive border-destructive/30 hover:bg-destructive/10">
+                <Button variant="outline" size="sm">
                   <Trash2 className="size-4" />Delete
                 </Button>
               </AlertDialogTrigger>
@@ -128,7 +128,7 @@ function AssetDetail({ id }: { id: string }) {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction className="bg-destructive text-white hover:bg-destructive/90" onClick={handleDelete}>
+                  <AlertDialogAction onClick={handleDelete}>
                     Delete
                   </AlertDialogAction>
                 </AlertDialogFooter>

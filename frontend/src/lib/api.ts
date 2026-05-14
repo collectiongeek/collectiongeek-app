@@ -50,6 +50,17 @@ export function deleteAccount(token: string) {
   return request<void>("/api/v1/users/me", { method: "DELETE", token });
 }
 
+export function updateTheme(
+  token: string,
+  data: { theme?: string; themeMode?: "light" | "dark" | "system" }
+) {
+  return request<void>("/api/v1/users/me/theme", {
+    method: "PUT",
+    token,
+    body: JSON.stringify(data),
+  });
+}
+
 // --- Asset Types ---
 
 export type DescriptorDataType =
