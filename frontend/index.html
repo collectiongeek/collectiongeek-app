@@ -6,6 +6,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CollectionGeek</title>
     <script src="/config.js"></script>
+    <script>
+      // Apply the dark/light class before first paint so reloading a
+      // dark-mode page doesn't flash light first. The full theme variables
+      // are applied once ThemeProvider mounts.
+      (function () {
+        try {
+          var m = localStorage.getItem("cg.themeMode") || "system";
+          var dark =
+            m === "dark" ||
+            (m === "system" &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches);
+          if (dark) document.documentElement.classList.add("dark");
+        } catch (e) {
+          console.error("Failed to apply pre-paint theme:", e);
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

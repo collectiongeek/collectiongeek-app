@@ -7,6 +7,11 @@ export default defineSchema({
     email: v.string(),
     username: v.string(),
     createdAt: v.number(),
+    // UI theme preference. Both optional; defaults applied client-side.
+    theme: v.optional(v.string()),
+    themeMode: v.optional(
+      v.union(v.literal("light"), v.literal("dark"), v.literal("system"))
+    ),
   })
     .index("by_workos_id", ["workosUserId"])
     .index("by_username", ["username"])

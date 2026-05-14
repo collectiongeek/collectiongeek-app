@@ -98,7 +98,7 @@ export function CollectionTypesListPage() {
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <AlertDialogTrigger asChild>
-                        <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeletingId(ct._id)}>
+                        <DropdownMenuItem onClick={() => setDeletingId(ct._id)}>
                           <Trash2 className="size-4" />Delete
                         </DropdownMenuItem>
                       </AlertDialogTrigger>
@@ -113,7 +113,7 @@ export function CollectionTypesListPage() {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction className="bg-destructive text-white hover:bg-destructive/90" onClick={() => handleDelete(ct._id)}>
+                      <AlertDialogAction onClick={() => handleDelete(ct._id)}>
                         Delete
                       </AlertDialogAction>
                     </AlertDialogFooter>

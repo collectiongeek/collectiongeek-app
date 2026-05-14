@@ -205,7 +205,6 @@ export function DashboardPage() {
                         <DropdownMenuSeparator />
                         <AlertDialogTrigger asChild>
                           <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
                             onClick={() => setDeletingId(col._id)}
                           >
                             <Trash2 className="size-4" />
@@ -227,7 +226,6 @@ export function DashboardPage() {
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction
-                          className="bg-destructive text-white hover:bg-destructive/90"
                           onClick={() => handleDelete(col._id)}
                         >
                           Delete

@@ -84,6 +84,56 @@ func (h *UsersHandler) UpsertUser(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(result)
 }
 
+// PUT /api/v1/users/me/theme — persist the user's UI theme + mode.
+// Body: { theme?: string, themeMode?: "light" | "dark" | "system" }
+func (h *UsersHandler) UpdateTheme(w http.ResponseWriter, r *http.Request) {
+	workosUserID := middleware.WorkOSUserID(r)
+	if workosUserID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var body struct {
+		Theme     *string `json:"theme"`
+		ThemeMode *string `json:"themeMode"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if body.Theme == nil && body.ThemeMode == nil {
+		http.Error(w, "At least one of theme or themeMode must be provided", http.StatusBadRequest)
+		return
+	}
+
+	args := map[string]any{"workosUserId": workosUserID}
+	if body.Theme != nil {
+		theme := strings.TrimSpace(*body.Theme)
+		if theme == "" || len(theme) > 64 {
+			http.Error(w, "Invalid theme", http.StatusBadRequest)
+			return
+		}
+		args["theme"] = theme
+	}
+	if body.ThemeMode != nil {
+		switch *body.ThemeMode {
+		case "light", "dark", "system":
+			args["themeMode"] = *body.ThemeMode
+		default:
+			http.Error(w, "themeMode must be light, dark, or system", http.StatusBadRequest)
+			return
+		}
+	}
+
+	if err := h.convex.Mutation(r.Context(), "users:updateTheme", args, nil); err != nil {
+		http.Error(w, "Failed to update theme", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // DELETE /api/v1/users/me — cascade-delete the authenticated user from Convex and WorkOS.
 func (h *UsersHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	workosUserID := middleware.WorkOSUserID(r)

@@ -11,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ThemePicker } from "@/components/layout/ThemePicker";
 
 const navItems = [
   { to: "/dashboard", label: "Collections" },
@@ -47,8 +48,8 @@ export function Layout() {
                   className={({ isActive }) =>
                     `rounded-md px-2.5 py-1.5 transition-colors ${
                       isActive
-                        ? "bg-muted text-foreground"
-                        : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                        ? "bg-accent text-accent-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground"
                     }`
                   }
                 >
@@ -61,17 +62,14 @@ export function Layout() {
           )}
 
           {user && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="Account menu"
-                  className="justify-self-end"
-                >
-                  <User className="size-4" />
-                </Button>
-              </DropdownMenuTrigger>
+            <div className="flex items-center justify-self-end gap-1">
+              <ThemePicker />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" aria-label="Account menu">
+                    <User className="size-4" />
+                  </Button>
+                </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <div className="px-2 py-1.5 text-sm text-muted-foreground">
                   {convexUser === undefined
@@ -87,14 +85,15 @@ export function Layout() {
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  className="text-destructive focus:text-destructive cursor-pointer"
+                  className="cursor-pointer"
                   onClick={handleSignOut}
                 >
                   <LogOut className="size-4" />
                   Sign out
                 </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           )}
         </div>
       </header>

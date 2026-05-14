@@ -6,6 +6,7 @@ import { AuthKitProvider, useAuth } from "@workos-inc/authkit-react";
 import { Toaster } from "sonner";
 import { router } from "./router";
 import { config } from "@/lib/config";
+import { ThemeProvider } from "@/lib/theme-provider";
 import "./index.css";
 
 const convex = new ConvexReactClient(config.convexUrl);
@@ -50,8 +51,10 @@ function App() {
       {...workosProxy}
     >
       <ConvexProviderWithAuth client={convex} useAuth={useConvexAuth}>
-        <RouterProvider router={router} />
-        <Toaster richColors position="top-right" />
+        <ThemeProvider>
+          <RouterProvider router={router} />
+          <Toaster richColors position="top-right" />
+        </ThemeProvider>
       </ConvexProviderWithAuth>
     </AuthKitProvider>
   );
