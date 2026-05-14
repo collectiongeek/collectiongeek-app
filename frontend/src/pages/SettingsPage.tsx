@@ -61,12 +61,12 @@ export function SettingsPage() {
         <h2 className="text-base font-semibold">Profile</h2>
         <div className="grid gap-1 text-sm">
           <div className="flex items-center justify-between py-2">
-            <span className="text-muted-foreground">Email</span>
-            <span>{user?.email}</span>
-          </div>
-          <div className="flex items-center justify-between py-2">
             <span className="text-muted-foreground">Username</span>
             <span>{convexUser?.username || "—"}</span>
+          </div>
+          <div className="flex items-center justify-between py-2">
+            <span className="text-muted-foreground">Email</span>
+            <span>{user?.email}</span>
           </div>
           <div className="flex items-center justify-between py-2">
             <span className="text-muted-foreground">Member since</span>
