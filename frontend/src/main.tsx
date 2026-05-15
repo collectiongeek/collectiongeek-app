@@ -3,10 +3,10 @@ import { createRoot } from "react-dom/client";
 import { RouterProvider } from "react-router-dom";
 import { ConvexProviderWithAuth, ConvexReactClient } from "convex/react";
 import { AuthKitProvider, useAuth } from "@workos-inc/authkit-react";
-import { Toaster } from "sonner";
 import { router } from "./router";
 import { config } from "@/lib/config";
 import { ThemeProvider } from "@/lib/theme-provider";
+import { ThemedToaster } from "@/components/layout/ThemedToaster";
 import "./index.css";
 
 const convex = new ConvexReactClient(config.convexUrl);
@@ -53,7 +53,7 @@ function App() {
       <ConvexProviderWithAuth client={convex} useAuth={useConvexAuth}>
         <ThemeProvider>
           <RouterProvider router={router} />
-          <Toaster richColors position="top-right" />
+          <ThemedToaster />
         </ThemeProvider>
       </ConvexProviderWithAuth>
     </AuthKitProvider>

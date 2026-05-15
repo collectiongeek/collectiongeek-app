@@ -8,6 +8,7 @@ const descriptorInput = v.object({
     v.literal("text"),
     v.literal("number"),
     v.literal("date"),
+    v.literal("year"),
     v.literal("boolean"),
     v.literal("select")
   ),

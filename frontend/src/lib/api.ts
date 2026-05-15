@@ -67,6 +67,7 @@ export type DescriptorDataType =
   | "text"
   | "number"
   | "date"
+  | "year"
   | "boolean"
   | "select";
 

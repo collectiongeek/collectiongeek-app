@@ -31,6 +31,7 @@ var allowedDataTypes = map[string]bool{
 	"text":    true,
 	"number":  true,
 	"date":    true,
+	"year":    true,
 	"boolean": true,
 	"select":  true,
 }
