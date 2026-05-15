@@ -1,57 +1,13 @@
-import { StrictMode, useCallback, useEffect } from "react";
+import { StrictMode, useCallback } from "react";
 import { createRoot } from "react-dom/client";
 import { RouterProvider } from "react-router-dom";
 import { ConvexProviderWithAuth, ConvexReactClient } from "convex/react";
 import { AuthKitProvider, useAuth } from "@workos-inc/authkit-react";
-import { Toaster } from "sonner";
 import { router } from "./router";
 import { config } from "@/lib/config";
-import { ThemeProvider, useTheme } from "@/lib/theme-provider";
+import { ThemeProvider } from "@/lib/theme-provider";
+import { ThemedToaster } from "@/components/layout/ThemedToaster";
 import "./index.css";
-
-function ThemedToaster() {
-  // Pass the current theme mode so Sonner's panel inherits light/dark from
-  // the app rather than defaulting to its own palette. "system" is resolved
-  // by Sonner itself.
-  const { mode } = useTheme();
-
-  // Sonner has no built-in "click anywhere on the toast to dismiss" — only
-  // the corner close button. We synthesize the behavior by listening for
-  // clicks on toast bodies and programmatically clicking the (hidden) close
-  // button, which is far less invasive than wrapping every toast call.
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (!target) return;
-      const toast = target.closest("[data-sonner-toast]");
-      if (!toast) return;
-      // Don't hijack clicks on the toast's own controls (close button,
-      // action button, cancel button).
-      if (
-        target.closest(
-          "[data-close-button], [data-button], [data-cancel]"
-        )
-      ) {
-        return;
-      }
-      const closeBtn = toast.querySelector<HTMLButtonElement>(
-        "[data-close-button]"
-      );
-      closeBtn?.click();
-    };
-    document.addEventListener("click", handler);
-    return () => document.removeEventListener("click", handler);
-  }, []);
-
-  return (
-    <Toaster
-      position="top-right"
-      theme={mode}
-      closeButton
-      toastOptions={{ className: "cursor-pointer" }}
-    />
-  );
-}
 
 const convex = new ConvexReactClient(config.convexUrl);
 
