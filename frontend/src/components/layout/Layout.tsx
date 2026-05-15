@@ -1,4 +1,4 @@
-import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
+import { Link, NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "@workos-inc/authkit-react";
 import { useQuery } from "convex/react";
 import { api } from "@convex-gen/api";
@@ -23,11 +23,22 @@ const navItems = [
 export function Layout() {
   const { user, signOut } = useAuth();
   const convexUser = useQuery(api.users.getUser);
-  const navigate = useNavigate();
 
   async function handleSignOut() {
-    await signOut();
-    navigate("/");
+    // signOut({ navigate: false }) clears the in-memory JWT and localStorage
+    // refresh tokens, and (after we await) the fire-and-forget fetch to the
+    // WorkOS logout endpoint completes — invalidating the server-side
+    // session too. It does NOT update AuthKit's React user state, so a
+    // client-side navigate("/") would flash the landing page and bounce back
+    // to /dashboard because LandingPage's useEffect still sees `user`.
+    // window.location.replace forces a full reload so AuthKit re-initializes
+    // from scratch with no tokens → user is null → lands on LandingPage.
+    // Skipping the WorkOS-hosted logout redirect avoids the
+    // app-homepage-url-not-found error in environments missing that config.
+    await signOut({ navigate: false }).catch((err) => {
+      console.warn("Sign-out request failed:", err);
+    });
+    window.location.replace("/");
   }
 
   return (
@@ -71,7 +82,7 @@ export function Layout() {
                   </Button>
                 </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                <div className="px-2 py-1.5 text-sm text-muted-foreground text-center">
                   {convexUser === undefined
                     ? " "
                     : convexUser?.username || user.email}

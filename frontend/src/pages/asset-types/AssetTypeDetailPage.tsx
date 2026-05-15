@@ -12,6 +12,7 @@ const DATA_TYPE_LABELS: Record<string, string> = {
   text: "Text",
   number: "Number",
   date: "Date",
+  year: "Year",
   boolean: "Yes/No",
   select: "Select",
 };

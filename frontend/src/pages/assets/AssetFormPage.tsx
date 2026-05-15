@@ -275,6 +275,12 @@ function AssetForm({
                   </option>
                 ))}
               </select>
+              <p className="text-xs text-muted-foreground">
+                <Link to="/asset-types/new" className="underline">
+                  Create a new asset type
+                </Link>{" "}
+                if you don't see the one you need.
+              </p>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
@@ -450,6 +456,26 @@ function DescriptorField({
             </option>
           ))}
         </select>
+      </div>
+    );
+  }
+
+  if (descriptor.dataType === "year") {
+    return (
+      <div className="space-y-1.5">
+        {label}
+        <Input
+          id={descriptor._id}
+          type="number"
+          inputMode="numeric"
+          min={1}
+          max={9999}
+          step={1}
+          placeholder="e.g. 2003"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          required={descriptor.required}
+        />
       </div>
     );
   }

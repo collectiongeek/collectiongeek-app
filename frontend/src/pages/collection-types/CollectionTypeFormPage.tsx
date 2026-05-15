@@ -195,6 +195,12 @@ function CollectionTypeForm({ mode, collectionTypeId, initial }: FormProps) {
               These are suggestions used when adding assets to a collection of this type. They're
               not enforced — any asset can still be added.
             </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              <Link to="/asset-types/new" className="underline">
+                Create a new asset type
+              </Link>{" "}
+              if you don't see the one you need.
+            </p>
           </CardContent>
         </Card>
 

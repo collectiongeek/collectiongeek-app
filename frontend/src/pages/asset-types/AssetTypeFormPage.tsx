@@ -23,6 +23,7 @@ const DATA_TYPES: { value: DescriptorDataType; label: string }[] = [
   { value: "text", label: "Text" },
   { value: "number", label: "Number" },
   { value: "date", label: "Date" },
+  { value: "year", label: "Year" },
   { value: "boolean", label: "Yes/No" },
   { value: "select", label: "Select" },
 ];
@@ -219,6 +220,11 @@ function AssetTypeForm({ mode, assetTypeId, initial }: FormProps) {
                 <Plus className="size-4" />Add descriptor
               </Button>
             </div>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Descriptors are the fields that describe an asset of this type.
+              For example, a <span className="font-medium">Car</span> might
+              have descriptors like VIN, Color, Model Year, and Mileage.
+            </p>
           </CardHeader>
           {descriptors.length > 0 && (
             <CardContent className="space-y-3">
