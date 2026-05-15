@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ThemePicker } from "@/components/layout/ThemePicker";
+import { HeaderSearch } from "@/components/layout/HeaderSearch";
 
 const navItems = [
   { to: "/dashboard", label: "Collections" },
@@ -44,36 +45,37 @@ export function Layout() {
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur">
-        <div className="mx-auto grid h-14 max-w-5xl grid-cols-[1fr_auto_1fr] items-center px-4">
-          <Link to="/dashboard" className="flex items-center gap-2 font-semibold">
+        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-4 px-4">
+          <Link to="/dashboard" className="flex items-center gap-2 font-semibold shrink-0">
             <BookOpen className="size-5" />
             CollectionGeek
           </Link>
 
-          {user ? (
-            <nav className="hidden md:flex items-center justify-center gap-1 text-sm whitespace-nowrap">
-              {navItems.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  className={({ isActive }) =>
-                    `rounded-md px-2.5 py-1.5 transition-colors ${
-                      isActive
-                        ? "bg-accent text-accent-foreground"
-                        : "text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground"
-                    }`
-                  }
-                >
-                  {item.label}
-                </NavLink>
-              ))}
-            </nav>
-          ) : (
-            <div />
+          {user && (
+            <div className="flex items-center gap-3">
+              <HeaderSearch className="w-56" />
+              <nav className="hidden lg:flex items-center gap-1 text-sm whitespace-nowrap">
+                {navItems.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    className={({ isActive }) =>
+                      `rounded-md px-2.5 py-1.5 transition-colors ${
+                        isActive
+                          ? "bg-accent text-accent-foreground"
+                          : "text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground"
+                      }`
+                    }
+                  >
+                    {item.label}
+                  </NavLink>
+                ))}
+              </nav>
+            </div>
           )}
 
           {user && (
-            <div className="flex items-center justify-self-end gap-1">
+            <div className="flex items-center gap-1">
               <ThemePicker />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

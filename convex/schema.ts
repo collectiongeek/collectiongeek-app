@@ -83,11 +83,16 @@ export default defineSchema({
     tags: v.optional(v.array(v.string())),
     createdAt: v.number(),
     updatedAt: v.number(),
+    // Denormalized blob of name + description + tags + descriptor values,
+    // kept in sync on every asset / descriptor-value write. Convex search
+    // indexes only support one searchField, so we collapse the searchable
+    // surface into this single field.
+    searchBlob: v.optional(v.string()),
   })
     .index("by_user", ["userId"])
     .index("by_asset_type", ["assetTypeId"])
     .searchIndex("search_assets", {
-      searchField: "name",
+      searchField: "searchBlob",
       filterFields: ["userId"],
     }),
 

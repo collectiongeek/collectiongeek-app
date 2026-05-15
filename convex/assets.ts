@@ -1,11 +1,31 @@
 import { v } from "convex/values";
-import { internalMutation, query } from "./_generated/server";
+import { internalMutation, query, type MutationCtx } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 import { getUserFromIdentity } from "./auth";
 
 const descriptorValueInput = v.object({
   descriptorId: v.id("assetTypeDescriptors"),
   value: v.string(),
 });
+
+// Recomputes the searchBlob for an asset and writes it back. Called from
+// createAsset / updateAsset / backfill — anywhere asset text or descriptor
+// values change. Convex search indexes only support a single searchField, so
+// we collapse name + description + tags + descriptor values into one string.
+async function refreshSearchBlob(ctx: MutationCtx, assetId: Id<"assets">) {
+  const asset = await ctx.db.get(assetId);
+  if (!asset) return;
+  const values = await ctx.db
+    .query("assetDescriptorValues")
+    .withIndex("by_asset", (q) => q.eq("assetId", assetId))
+    .collect();
+  const parts: string[] = [];
+  if (asset.name) parts.push(asset.name);
+  if (asset.description) parts.push(asset.description);
+  if (asset.tags) parts.push(...asset.tags);
+  for (const dv of values) if (dv.value) parts.push(dv.value);
+  await ctx.db.patch(assetId, { searchBlob: parts.join(" ") });
+}
 
 export const listAllAssets = query({
   handler: async (ctx) => {
@@ -117,7 +137,7 @@ export const searchAssets = query({
     return ctx.db
       .query("assets")
       .withSearchIndex("search_assets", (q) =>
-        q.search("name", searchQuery).eq("userId", user._id)
+        q.search("searchBlob", searchQuery).eq("userId", user._id)
       )
       .take(20);
   },
@@ -203,6 +223,7 @@ export const createAsset = internalMutation({
       );
     }
 
+    await refreshSearchBlob(ctx, assetId);
     return { id: assetId };
   },
 });
@@ -300,7 +321,7 @@ export const updateAsset = internalMutation({
         .query("assetDescriptorValues")
         .withIndex("by_asset", (q) => q.eq("assetId", assetId))
         .collect();
-      await Promise.all(existing.map((v) => ctx.db.delete(v._id)));
+      await Promise.all(existing.map((dv) => ctx.db.delete(dv._id)));
       await Promise.all(
         descriptorValues.map((dv) =>
           ctx.db.insert("assetDescriptorValues", {
@@ -318,8 +339,41 @@ export const updateAsset = internalMutation({
         .query("assetDescriptorValues")
         .withIndex("by_asset", (q) => q.eq("assetId", assetId))
         .collect();
-      await Promise.all(existing.map((v) => ctx.db.delete(v._id)));
+      await Promise.all(existing.map((dv) => ctx.db.delete(dv._id)));
     }
+
+    await refreshSearchBlob(ctx, assetId);
+  },
+});
+
+// One-off migration: populate searchBlob on every existing asset. Safe to
+// re-run — refreshSearchBlob always recomputes from current data.
+//
+// Paginated to stay within Convex's mutation execution budget on large
+// datasets. Call once with no args, then keep re-invoking with the returned
+// cursor until isDone is true. From the CLI:
+//   npx convex run assets:backfillSearchBlobs '{}'
+//   npx convex run assets:backfillSearchBlobs '{"cursor":"<value>"}'
+//   ...repeat...
+export const backfillSearchBlobs = internalMutation({
+  args: {
+    cursor: v.optional(v.union(v.string(), v.null())),
+    batchSize: v.optional(v.number()),
+  },
+  handler: async (ctx, { cursor, batchSize }) => {
+    const result = await ctx.db
+      .query("assets")
+      .paginate({ cursor: cursor ?? null, numItems: batchSize ?? 100 });
+
+    for (const asset of result.page) {
+      await refreshSearchBlob(ctx, asset._id);
+    }
+
+    return {
+      processed: result.page.length,
+      cursor: result.continueCursor,
+      isDone: result.isDone,
+    };
   },
 });
 
@@ -348,7 +402,7 @@ export const deleteAsset = internalMutation({
       .query("assetDescriptorValues")
       .withIndex("by_asset", (q) => q.eq("assetId", assetId))
       .collect();
-    await Promise.all(values.map((v) => ctx.db.delete(v._id)));
+    await Promise.all(values.map((dv) => ctx.db.delete(dv._id)));
 
     await ctx.db.delete(assetId);
   },
