@@ -2,7 +2,7 @@ import { Link, NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "@workos-inc/authkit-react";
 import { useQuery } from "convex/react";
 import { api } from "@convex-gen/api";
-import { BookOpen, LogOut, Settings, User } from "lucide-react";
+import { BookOpen, LogOut, Menu, Settings, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ThemePicker } from "@/components/layout/ThemePicker";
+import { HeaderSearch } from "@/components/layout/HeaderSearch";
 
 const navItems = [
   { to: "/dashboard", label: "Collections" },
@@ -44,36 +45,60 @@ export function Layout() {
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur">
-        <div className="mx-auto grid h-14 max-w-5xl grid-cols-[1fr_auto_1fr] items-center px-4">
-          <Link to="/dashboard" className="flex items-center gap-2 font-semibold">
+        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-4 px-4">
+          <Link to="/dashboard" className="flex items-center gap-2 font-semibold shrink-0">
             <BookOpen className="size-5" />
-            CollectionGeek
+            <span className="hidden sm:inline">CollectionGeek</span>
           </Link>
 
-          {user ? (
-            <nav className="hidden md:flex items-center justify-center gap-1 text-sm whitespace-nowrap">
-              {navItems.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  className={({ isActive }) =>
-                    `rounded-md px-2.5 py-1.5 transition-colors ${
-                      isActive
-                        ? "bg-accent text-accent-foreground"
-                        : "text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground"
-                    }`
-                  }
-                >
-                  {item.label}
-                </NavLink>
-              ))}
-            </nav>
-          ) : (
-            <div />
+          {user && (
+            <div className="flex items-center gap-3">
+              <HeaderSearch className="w-40 sm:w-48 lg:w-56" />
+              <nav className="hidden lg:flex items-center gap-1 text-sm whitespace-nowrap">
+                {navItems.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    className={({ isActive }) =>
+                      `rounded-md px-2.5 py-1.5 transition-colors ${
+                        isActive
+                          ? "bg-accent text-accent-foreground"
+                          : "text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground"
+                      }`
+                    }
+                  >
+                    {item.label}
+                  </NavLink>
+                ))}
+              </nav>
+            </div>
           )}
 
           {user && (
-            <div className="flex items-center justify-self-end gap-1">
+            <div className="flex items-center gap-1">
+              {/* Below lg, the inline nav links are hidden — surface them via
+                  a hamburger menu so users on phones/tablets can still navigate. */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Navigation menu"
+                    className="lg:hidden"
+                  >
+                    <Menu className="size-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {navItems.map((item) => (
+                    <DropdownMenuItem asChild key={item.to}>
+                      <Link to={item.to} className="cursor-pointer">
+                        {item.label}
+                      </Link>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
               <ThemePicker />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
