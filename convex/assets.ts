@@ -20,6 +20,21 @@ export const listAllAssets = query({
   },
 });
 
+// Count-only variant used by the Dashboard's "All assets · N" card. Avoids
+// shipping the full per-asset payload to a component that only needs the
+// number, and re-renders only when the count itself changes.
+export const getAssetCount = query({
+  handler: async (ctx) => {
+    const user = await getUserFromIdentity(ctx);
+    if (!user) return 0;
+    const assets = await ctx.db
+      .query("assets")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .collect();
+    return assets.length;
+  },
+});
+
 export const listAssetsInCollection = query({
   args: { collectionId: v.id("collections") },
   handler: async (ctx, { collectionId }) => {

@@ -83,7 +83,7 @@ export function DashboardPage() {
   const collections = useQuery(api.collections.listCollections);
   const collectionTypes = useQuery(api.collectionTypes.listCollectionTypes);
   const assetTypes = useQuery(api.assetTypes.listAssetTypes);
-  const allAssets = useQuery(api.assets.listAllAssets);
+  const assetCount = useQuery(api.assets.getAssetCount);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showValues, setShowValues] = useState(readShowValues);
 
@@ -148,8 +148,8 @@ export function DashboardPage() {
             <div>
               <p className="font-semibold text-sm">
                 All assets
-                {allAssets !== undefined && (
-                  <span className="text-muted-foreground font-normal"> · {allAssets.length}</span>
+                {assetCount !== undefined && (
+                  <span className="text-muted-foreground font-normal"> · {assetCount}</span>
                 )}
               </p>
               <p className="text-xs text-muted-foreground">Browse everything you've cataloged</p>
