@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "convex/react";
 import { api } from "@convex-gen/api";
@@ -21,6 +21,11 @@ export function HeaderSearch({ className }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+  // Stable IDs used to wire the combobox semantics: input → listbox →
+  // active option. The activedescendant pattern keeps DOM focus on the
+  // input while ARIA reports which option is "active".
+  const listboxId = useId();
+  const optionId = (assetId: string) => `${listboxId}-${assetId}`;
 
   // Debounce input so we don't fire a new Convex subscription per keystroke.
   // We also reset the keyboard-focused index here, since it pairs with the
@@ -93,14 +98,23 @@ export function HeaderSearch({ className }: Props) {
         onChange={(e) => setInput(e.target.value)}
         onFocus={() => setOpen(true)}
         onKeyDown={onKeyDown}
+        role="combobox"
         aria-label="Search assets"
         aria-autocomplete="list"
         aria-expanded={showPopover}
+        aria-controls={listboxId}
+        aria-activedescendant={
+          showPopover && list.length > 0
+            ? optionId(list[focusedIndex]._id)
+            : undefined
+        }
         className="h-8 pl-8 text-sm"
       />
       {showPopover && (
         <div
+          id={listboxId}
           role="listbox"
+          aria-label="Search results"
           className="absolute left-0 right-0 top-full z-50 mt-1 max-h-96 overflow-y-auto rounded-md border bg-popover p-1 shadow-md"
         >
           {results === undefined ? (
@@ -117,6 +131,7 @@ export function HeaderSearch({ className }: Props) {
               return (
                 <Link
                   key={asset._id}
+                  id={optionId(asset._id)}
                   to={`/assets/${asset._id}`}
                   role="option"
                   aria-selected={active}
