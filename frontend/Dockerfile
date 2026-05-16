@@ -25,20 +25,10 @@ COPY --from=builder /workspace/frontend/dist /usr/share/nginx/html
 COPY frontend/docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
-# SPA fallback + WorkOS proxy (avoids CORS on /user_management/* token exchange)
-RUN printf 'server {\n\
-    listen 80;\n\
-    location /user_management/ {\n\
-        proxy_pass https://api.workos.com/user_management/;\n\
-        proxy_ssl_server_name on;\n\
-        proxy_set_header Host api.workos.com;\n\
-        proxy_set_header X-Real-IP $remote_addr;\n\
-    }\n\
-    location / {\n\
-        root /usr/share/nginx/html;\n\
-        try_files $uri $uri/ /index.html;\n\
-    }\n\
-}\n' > /etc/nginx/conf.d/default.conf
+# CSP + security-header config and SPA fallback live in nginx.conf so the
+# Content-Security-Policy string isn't fighting printf escaping. See the
+# header comment in that file for what each directive protects.
+COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 

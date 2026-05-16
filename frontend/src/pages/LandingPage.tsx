@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@workos-inc/authkit-react";
-import { BookOpen, Search, Tag, TrendingUp } from "lucide-react";
+import { BookOpen, ShieldCheck, Tag, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const FEATURES = [
@@ -21,9 +21,9 @@ const FEATURES = [
     description: "Log purchased and market values to know your collection's total worth.",
   },
   {
-    icon: Search,
-    title: "Instant search",
-    description: "Full-text search across all your assets in real time.",
+    icon: ShieldCheck,
+    title: "Private by design",
+    description: "Your data is encrypted in your browser before it reaches our servers. We can't see your collection. Only you can.",
   },
 ];
 
@@ -70,7 +70,7 @@ export function LandingPage() {
         </p>
         <div className="mt-8 flex gap-3">
           <Button size="lg" onClick={() => signUp()}>
-            Start for free
+            Get started
           </Button>
           <Button size="lg" variant="outline" onClick={() => signIn()}>
             Sign in
