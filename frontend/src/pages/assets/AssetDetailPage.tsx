@@ -16,6 +16,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ChevronLeft, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { useEncryption } from "@/lib/encryption-provider";
+import { useDecrypted } from "@/lib/use-decrypted";
+import {
+  decryptOptionalArray,
+  decryptOptionalNumber,
+  decryptOptionalText,
+  decryptText,
+} from "@/lib/encrypted-fields";
 
 function formatDescriptorValue(
   value: string,
@@ -26,6 +34,27 @@ function formatDescriptorValue(
   return value;
 }
 
+interface DecryptedDetail {
+  name: string;
+  description?: string;
+  dateAcquired?: string;
+  purchasedValue?: number;
+  marketValue?: number;
+  tags?: string[];
+  assetTypeName?: string;
+  descriptors: Array<{
+    _id: string;
+    name: string;
+    dataType: string;
+  }>;
+  descriptorValues: Array<{
+    _id: string;
+    descriptorId: string;
+    value: string;
+  }>;
+  collections: Array<{ _id: string; name: string }>;
+}
+
 export function AssetDetailPage() {
   const { id } = useParams<{ id: string }>();
   if (!id) return null;
@@ -34,13 +63,48 @@ export function AssetDetailPage() {
 
 function AssetDetail({ id }: { id: string }) {
   const { getAccessToken } = useAuth();
+  const { dek } = useEncryption();
   const navigate = useNavigate();
 
   const asset = useQuery(api.assets.getAsset, { assetId: id as Id<"assets"> });
 
+  const decrypted = useDecrypted(
+    asset,
+    dek,
+    async (raw, dek): Promise<DecryptedDetail> => ({
+      name: await decryptText(raw.name, dek),
+      description: await decryptOptionalText(raw.description, dek),
+      dateAcquired: await decryptOptionalText(raw.dateAcquired, dek),
+      purchasedValue: await decryptOptionalNumber(raw.purchasedValue, dek),
+      marketValue: await decryptOptionalNumber(raw.marketValue, dek),
+      tags: await decryptOptionalArray(raw.tags, dek),
+      assetTypeName: raw.assetType
+        ? await decryptText(raw.assetType.name, dek)
+        : undefined,
+      descriptors: await Promise.all(
+        raw.descriptors.map(async (d) => ({
+          _id: d._id,
+          name: await decryptText(d.name, dek),
+          dataType: d.dataType,
+        }))
+      ),
+      descriptorValues: await Promise.all(
+        raw.descriptorValues.map(async (v) => ({
+          _id: v._id,
+          descriptorId: v.descriptorId,
+          value: await decryptText(v.value, dek),
+        }))
+      ),
+      collections: await Promise.all(
+        raw.collections.map(async (c) => ({
+          _id: c._id,
+          name: await decryptText(c.name, dek),
+        }))
+      ),
+    })
+  );
+
   async function handleDelete() {
-    // Capture the navigation target before the delete so a reactive update to
-    // `asset` (which may flip to null after deletion) can't change where we go.
     const firstCollection = asset?.collections[0];
     const target = firstCollection
       ? `/collections/${firstCollection._id}`
@@ -56,7 +120,7 @@ function AssetDetail({ id }: { id: string }) {
     }
   }
 
-  if (asset === undefined) {
+  if (asset === undefined || (asset !== null && !decrypted)) {
     return (
       <div className="max-w-2xl space-y-4">
         <Skeleton className="h-8 w-48" />
@@ -76,6 +140,8 @@ function AssetDetail({ id }: { id: string }) {
     );
   }
 
+  if (!decrypted) return null;
+
   const backHref = asset.collections[0]
     ? `/collections/${asset.collections[0]._id}`
     : "/assets";
@@ -83,9 +149,7 @@ function AssetDetail({ id }: { id: string }) {
     ? "Back to collection"
     : "All assets";
 
-  const descriptorsById = new Map(
-    asset.descriptors.map((d) => [d._id, d])
-  );
+  const descriptorsById = new Map(decrypted.descriptors.map((d) => [d._id, d]));
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -98,11 +162,11 @@ function AssetDetail({ id }: { id: string }) {
         </Button>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold">{asset.name}</h1>
-            {asset.assetType && (
+            <h1 className="text-2xl font-bold">{decrypted.name}</h1>
+            {asset.assetType && decrypted.assetTypeName && (
               <Link to={`/asset-types/${asset.assetType._id}`}>
                 <Badge variant="secondary" className="mt-2 cursor-pointer hover:bg-muted">
-                  {asset.assetType.name}
+                  {decrypted.assetTypeName}
                 </Badge>
               </Link>
             )}
@@ -123,7 +187,7 @@ function AssetDetail({ id }: { id: string }) {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Delete asset?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will permanently delete <strong>{asset.name}</strong> and remove it from all collections.
+                    This will permanently delete <strong>{decrypted.name}</strong> and remove it from all collections.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -138,11 +202,11 @@ function AssetDetail({ id }: { id: string }) {
         </div>
       </div>
 
-      {asset.description && <p className="text-muted-foreground">{asset.description}</p>}
+      {decrypted.description && <p className="text-muted-foreground">{decrypted.description}</p>}
 
-      {asset.tags && asset.tags.length > 0 && (
+      {decrypted.tags && decrypted.tags.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
-          {asset.tags.map((tag: string) => (
+          {decrypted.tags.map((tag: string) => (
             <Badge key={tag} variant="outline">{tag}</Badge>
           ))}
         </div>
@@ -151,39 +215,37 @@ function AssetDetail({ id }: { id: string }) {
       <Separator />
 
       <dl className="grid grid-cols-2 gap-x-8 gap-y-4 text-sm">
-        {asset.dateAcquired && (
+        {decrypted.dateAcquired && (
           <div>
             <dt className="text-muted-foreground">Date acquired</dt>
-            <dd className="font-medium mt-0.5">{formatDate(asset.dateAcquired)}</dd>
+            <dd className="font-medium mt-0.5">{formatDate(decrypted.dateAcquired)}</dd>
           </div>
         )}
-        {asset.purchasedValue !== undefined && (
+        {decrypted.purchasedValue !== undefined && (
           <div>
             <dt className="text-muted-foreground">Purchased for</dt>
-            <dd className="font-medium mt-0.5">{formatCents(asset.purchasedValue)}</dd>
+            <dd className="font-medium mt-0.5">{formatCents(decrypted.purchasedValue)}</dd>
           </div>
         )}
-        {asset.marketValue !== undefined && (
+        {decrypted.marketValue !== undefined && (
           <div>
             <dt className="text-muted-foreground">Market value</dt>
-            <dd className="font-medium mt-0.5 text-base">{formatCents(asset.marketValue)}</dd>
+            <dd className="font-medium mt-0.5 text-base">{formatCents(decrypted.marketValue)}</dd>
           </div>
         )}
       </dl>
 
-      {asset.descriptorValues.length > 0 && (
+      {decrypted.descriptorValues.length > 0 && (
         <>
           <Separator />
           <div className="space-y-3">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-              {asset.assetType?.name ?? "Details"}
+              {decrypted.assetTypeName ?? "Details"}
             </h2>
             <dl className="grid grid-cols-2 gap-x-8 gap-y-4 text-sm">
-              {asset.descriptorValues.map((v) => {
+              {decrypted.descriptorValues.map((v) => {
                 const d = descriptorsById.get(v.descriptorId);
                 if (!d) {
-                  // Orphan: descriptor was deleted out from under this value.
-                  // Cascade rules should prevent this, but warn during dev if it slips through.
                   console.warn(
                     `Orphaned descriptor value ${v._id} → descriptor ${v.descriptorId}`
                   );
@@ -203,7 +265,7 @@ function AssetDetail({ id }: { id: string }) {
         </>
       )}
 
-      {asset.collections.length > 0 && (
+      {decrypted.collections.length > 0 && (
         <>
           <Separator />
           <div className="space-y-3">
@@ -211,7 +273,7 @@ function AssetDetail({ id }: { id: string }) {
               Collections
             </h2>
             <div className="flex flex-wrap gap-2">
-              {asset.collections.map((c) => (
+              {decrypted.collections.map((c) => (
                 <Link key={c._id} to={`/collections/${c._id}`}>
                   <Badge variant="secondary" className="cursor-pointer hover:bg-muted">
                     {c.name}

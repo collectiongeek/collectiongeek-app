@@ -61,6 +61,28 @@ export function updateTheme(
   });
 }
 
+export function setEncryptionKey(
+  token: string,
+  data: { wrappedDek: string; keySalt: string }
+) {
+  return request<void>("/api/v1/users/me/encryption", {
+    method: "POST",
+    token,
+    body: JSON.stringify(data),
+  });
+}
+
+export function rotateEncryptionKey(
+  token: string,
+  data: { wrappedDek: string; keySalt: string }
+) {
+  return request<void>("/api/v1/users/me/encryption/rotate", {
+    method: "POST",
+    token,
+    body: JSON.stringify(data),
+  });
+}
+
 // --- Asset Types ---
 
 export type DescriptorDataType =
@@ -72,9 +94,12 @@ export type DescriptorDataType =
   | "select";
 
 export interface DescriptorInput {
+  /** Ciphertext of the descriptor name. */
   name: string;
   dataType: DescriptorDataType;
-  options?: string[];
+  /** For "select" data type: ciphertext of JSON.stringify(options[]).
+   *  A single encrypted blob, not an array of encrypted strings. */
+  options?: string;
   required: boolean;
   order: number;
 }
@@ -189,14 +214,16 @@ export interface DescriptorValueInput {
   value: string;
 }
 
+// All user-content fields are ciphertext strings. Numbers (cents) and tag
+// arrays are stringified+encrypted on the client before reaching this layer.
 export interface AssetPayload {
   assetTypeId?: string;
   name: string;
   description?: string;
   dateAcquired?: string;
-  purchasedValue?: number;
-  marketValue?: number;
-  tags?: string[];
+  purchasedValue?: string;
+  marketValue?: string;
+  tags?: string;
   collectionIds?: string[];
   descriptorValues?: DescriptorValueInput[];
 }

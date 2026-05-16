@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "convex/react";
 import { useAuth } from "@workos-inc/authkit-react";
 import { api } from "@convex-gen/api";
-import type { Id } from "@convex-gen/dataModel";
+import type { Doc, Id } from "@convex-gen/dataModel";
 import {
   createAssetType,
   updateAssetType,
@@ -18,6 +18,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronLeft, Plus, X } from "lucide-react";
 import { toast } from "sonner";
+import { useEncryption } from "@/lib/encryption-provider";
+import { useDecrypted } from "@/lib/use-decrypted";
+import {
+  decryptOptionalArray,
+  decryptOptionalText,
+  decryptText,
+  encryptOptionalArray,
+  encryptOptionalText,
+  encryptText,
+} from "@/lib/encrypted-fields";
 
 const DATA_TYPES: { value: DescriptorDataType; label: string }[] = [
   { value: "text", label: "Text" },
@@ -28,8 +38,14 @@ const DATA_TYPES: { value: DescriptorDataType; label: string }[] = [
   { value: "select", label: "Select" },
 ];
 
-interface DescriptorRow extends DescriptorInput {
-  optionsRaw?: string;
+/** Plaintext form state for one descriptor row. */
+interface DescriptorRow {
+  name: string;
+  dataType: DescriptorDataType;
+  required: boolean;
+  order: number;
+  /** Comma-separated text the user types for `select` options. */
+  optionsRaw: string;
 }
 
 function emptyDescriptor(order: number): DescriptorRow {
@@ -38,9 +54,14 @@ function emptyDescriptor(order: number): DescriptorRow {
     dataType: "text",
     required: false,
     order,
-    options: undefined,
     optionsRaw: "",
   };
+}
+
+interface InitialForm {
+  name: string;
+  description: string;
+  descriptors: DescriptorRow[];
 }
 
 export function CreateAssetTypePage() {
@@ -53,10 +74,42 @@ export function EditAssetTypePage() {
   return <EditAssetTypeLoader id={id} />;
 }
 
+type AssetTypeWithDescriptors = NonNullable<
+  ReturnType<
+    typeof useQuery<typeof api.assetTypes.getAssetType>
+  > extends infer T
+    ? T
+    : never
+>;
+
 function EditAssetTypeLoader({ id }: { id: string }) {
+  const { dek } = useEncryption();
   const data = useQuery(api.assetTypes.getAssetType, {
     assetTypeId: id as Id<"assetTypes">,
   });
+
+  const initial = useDecrypted(
+    data,
+    dek,
+    async (raw: AssetTypeWithDescriptors, dek): Promise<InitialForm> => {
+      return {
+        name: await decryptText(raw.name, dek),
+        description: (await decryptOptionalText(raw.description, dek)) ?? "",
+        descriptors: await Promise.all(
+          raw.descriptors.map(async (d: Doc<"assetTypeDescriptors">) => {
+            const options = await decryptOptionalArray(d.options, dek);
+            return {
+              name: await decryptText(d.name, dek),
+              dataType: d.dataType as DescriptorDataType,
+              required: d.required,
+              order: d.order,
+              optionsRaw: options ? options.join(", ") : "",
+            };
+          })
+        ),
+      };
+    }
+  );
 
   if (data === undefined) return <Skeleton className="h-48 w-full max-w-2xl" />;
   if (!data) {
@@ -69,34 +122,22 @@ function EditAssetTypeLoader({ id }: { id: string }) {
       </div>
     );
   }
+  if (!initial) return <Skeleton className="h-48 w-full max-w-2xl" />;
 
-  const initial = {
-    name: data.name,
-    description: data.description ?? "",
-    descriptors: data.descriptors.map((d) => ({
-      name: d.name,
-      dataType: d.dataType as DescriptorDataType,
-      required: d.required,
-      order: d.order,
-      options: d.options,
-      optionsRaw: d.options?.join(", ") ?? "",
-    })),
-  };
-  return <AssetTypeForm key={id} mode="edit" assetTypeId={id} initial={initial} />;
+  return (
+    <AssetTypeForm key={id} mode="edit" assetTypeId={id} initial={initial} />
+  );
 }
 
 interface FormProps {
   mode: "create" | "edit";
   assetTypeId?: string;
-  initial?: {
-    name: string;
-    description: string;
-    descriptors: DescriptorRow[];
-  };
+  initial?: InitialForm;
 }
 
 function AssetTypeForm({ mode, assetTypeId, initial }: FormProps) {
   const { getAccessToken } = useAuth();
+  const { dek } = useEncryption();
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState(initial?.name ?? "");
@@ -123,42 +164,48 @@ function AssetTypeForm({ mode, assetTypeId, initial }: FormProps) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || !dek) return;
     setSaving(true);
     try {
       const token = await getAccessToken();
       if (!token) throw new Error("Not authenticated");
 
-      const payloadDescriptors: DescriptorInput[] = descriptors
-        .filter((d) => d.name.trim())
-        .map((d, idx) => ({
-          name: d.name.trim(),
-          dataType: d.dataType,
-          required: d.required,
-          order: idx,
-          options:
-            d.dataType === "select"
-              ? (d.optionsRaw ?? "")
-                  .split(",")
-                  .map((s) => s.trim())
-                  .filter(Boolean)
-              : undefined,
-        }));
+      const payloadDescriptors: DescriptorInput[] = await Promise.all(
+        descriptors
+          .filter((d) => d.name.trim())
+          .map(async (d, idx) => {
+            const optionsArr =
+              d.dataType === "select"
+                ? d.optionsRaw
+                    .split(",")
+                    .map((s) => s.trim())
+                    .filter(Boolean)
+                : undefined;
+            return {
+              name: await encryptText(d.name.trim(), dek),
+              dataType: d.dataType,
+              required: d.required,
+              order: idx,
+              options: await encryptOptionalArray(optionsArr, dek),
+            };
+          })
+      );
+
+      const payload = {
+        name: await encryptText(name.trim(), dek),
+        description: await encryptOptionalText(
+          description.trim() || undefined,
+          dek
+        ),
+        descriptors: payloadDescriptors,
+      };
 
       if (mode === "create") {
-        const { id } = await createAssetType(token, {
-          name: name.trim(),
-          description: description.trim() || undefined,
-          descriptors: payloadDescriptors,
-        });
+        const { id } = await createAssetType(token, payload);
         toast.success("Asset type created");
         navigate(`/asset-types/${id}`);
       } else if (assetTypeId) {
-        await updateAssetType(token, assetTypeId, {
-          name: name.trim(),
-          description: description.trim() || undefined,
-          descriptors: payloadDescriptors,
-        });
+        await updateAssetType(token, assetTypeId, payload);
         toast.success("Asset type updated");
         navigate(`/asset-types/${assetTypeId}`);
       }
@@ -198,6 +245,7 @@ function AssetTypeForm({ mode, assetTypeId, initial }: FormProps) {
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Coin, Book, Car…"
                 required
+                maxLength={100}
               />
             </div>
             <div className="space-y-1.5">
@@ -236,6 +284,7 @@ function AssetTypeForm({ mode, assetTypeId, initial }: FormProps) {
                       value={d.name}
                       onChange={(e) => updateDescriptor(i, { name: e.target.value })}
                       className="flex-1"
+                      maxLength={100}
                     />
                     <select
                       value={d.dataType}
@@ -266,7 +315,7 @@ function AssetTypeForm({ mode, assetTypeId, initial }: FormProps) {
                   {d.dataType === "select" && (
                     <Input
                       placeholder="Options (comma-separated)"
-                      value={d.optionsRaw ?? ""}
+                      value={d.optionsRaw}
                       onChange={(e) =>
                         updateDescriptor(i, { optionsRaw: e.target.value })
                       }
@@ -292,7 +341,7 @@ function AssetTypeForm({ mode, assetTypeId, initial }: FormProps) {
           <Button type="button" variant="outline" onClick={() => navigate(backHref)}>
             Cancel
           </Button>
-          <Button type="submit" disabled={!name.trim() || saving}>
+          <Button type="submit" disabled={!name.trim() || saving || !dek}>
             {saving ? "Saving…" : mode === "create" ? "Create asset type" : "Save changes"}
           </Button>
         </div>

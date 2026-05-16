@@ -45,6 +45,54 @@ export const upsertUser = internalMutation({
   },
 });
 
+// Called by Go backend: persists the user's wrapped DEK + salt the first
+// time they complete encryption setup. Refuses to overwrite an existing
+// value — once a user has a wrappedDek, replacing it would orphan all of
+// their previously-encrypted data.
+export const setEncryptionKey = internalMutation({
+  args: {
+    workosUserId: v.string(),
+    wrappedDek: v.string(),
+    keySalt: v.string(),
+  },
+  handler: async (ctx, { workosUserId, wrappedDek, keySalt }) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_workos_id", (q) => q.eq("workosUserId", workosUserId))
+      .unique();
+    if (!user) throw new Error("User not found");
+    if (user.wrappedDek) {
+      throw new Error("Encryption key already set");
+    }
+    await ctx.db.patch(user._id, { wrappedDek, keySalt });
+  },
+});
+
+// Called by Go backend during recovery-code rotation. Overwrites wrappedDek
+// + keySalt. The server can't tell whether the new wrap is over the same
+// underlying DEK as before — that's enforced client-side by requiring the
+// caller to prove they have the OLD recovery code (decrypting the existing
+// wrap before re-wrapping under a new code). The server's only job here is
+// to accept the swap once the client has done the work.
+export const rotateEncryptionKey = internalMutation({
+  args: {
+    workosUserId: v.string(),
+    wrappedDek: v.string(),
+    keySalt: v.string(),
+  },
+  handler: async (ctx, { workosUserId, wrappedDek, keySalt }) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_workos_id", (q) => q.eq("workosUserId", workosUserId))
+      .unique();
+    if (!user) throw new Error("User not found");
+    if (!user.wrappedDek) {
+      throw new Error("No encryption key to rotate");
+    }
+    await ctx.db.patch(user._id, { wrappedDek, keySalt });
+  },
+});
+
 // Called by Go backend: persists the user's UI theme + mode preference.
 export const updateTheme = internalMutation({
   args: {

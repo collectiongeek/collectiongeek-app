@@ -46,7 +46,11 @@ export const getCollection = query({
   },
 });
 
-export const getCollectionValue = query({
+// Count-only variant. Returns just how many assets belong to a collection,
+// no per-asset payload. Used by the dashboard cards. The total-value
+// aggregation (sum of marketValue) cannot happen here anymore — marketValue
+// is ciphertext — and lives on the client now.
+export const getCollectionAssetCount = query({
   args: { collectionId: v.id("collections") },
   handler: async (ctx, { collectionId }) => {
     const user = await getUserFromIdentity(ctx);
@@ -60,18 +64,7 @@ export const getCollectionValue = query({
       .withIndex("by_collection", (q) => q.eq("collectionId", collectionId))
       .collect();
 
-    const assets = await Promise.all(
-      memberships.map((m) => ctx.db.get(m.assetId))
-    );
-
-    const ownedAssets = assets.filter(
-      (a): a is NonNullable<typeof a> => a !== null && a.userId === user._id
-    );
-    const totalCents = ownedAssets.reduce(
-      (sum, a) => sum + (a.marketValue ?? 0),
-      0
-    );
-    return { totalCents, assetCount: ownedAssets.length };
+    return { assetCount: memberships.length };
   },
 });
 

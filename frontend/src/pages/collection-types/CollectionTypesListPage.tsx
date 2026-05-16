@@ -18,6 +18,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { FolderTree, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { useEncryption } from "@/lib/encryption-provider";
+import { useDecrypted } from "@/lib/use-decrypted";
+import { decryptOptionalText, decryptText } from "@/lib/encrypted-fields";
 
 export function CollectionTypesListPage() {
   const { getAccessToken } = useAuth();
@@ -69,61 +72,103 @@ export function CollectionTypesListPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {types.map((ct: Doc<"collectionTypes">) => (
-            <div key={ct._id} className="group relative rounded-xl border bg-card p-5 hover:shadow-sm transition-shadow">
-              <div className="flex items-start justify-between gap-2">
-                <Link
-                  to={`/collection-types/${ct._id}`}
-                  className="flex-1 no-underline text-inherit focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
-                >
-                  <h3 className="font-semibold leading-tight">{ct.name}</h3>
-                  {ct.description && (
-                    <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{ct.description}</p>
-                  )}
-                </Link>
-                <AlertDialog open={deletingId === ct._id} onOpenChange={(open) => !open && setDeletingId(null)}>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-7 opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
-                        aria-label={`Actions for ${ct.name}`}
-                      >
-                        <MoreHorizontal className="size-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => navigate(`/collection-types/${ct._id}/edit`)}>
-                        <Pencil className="size-4" />Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <AlertDialogTrigger asChild>
-                        <DropdownMenuItem onClick={() => setDeletingId(ct._id)}>
-                          <Trash2 className="size-4" />Delete
-                        </DropdownMenuItem>
-                      </AlertDialogTrigger>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete collection type?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Delete <strong>{ct.name}</strong>? Any collections using this type must be moved off it first.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => handleDelete(ct._id)}>
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
-            </div>
+            <CollectionTypeCard
+              key={ct._id}
+              collectionType={ct}
+              isDeleting={deletingId === ct._id}
+              onAskDelete={() => setDeletingId(ct._id)}
+              onCloseDeletePrompt={() => setDeletingId(null)}
+              onDelete={() => handleDelete(ct._id)}
+              onEdit={() => navigate(`/collection-types/${ct._id}/edit`)}
+            />
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+interface CardProps {
+  collectionType: Doc<"collectionTypes">;
+  isDeleting: boolean;
+  onAskDelete: () => void;
+  onCloseDeletePrompt: () => void;
+  onDelete: () => void;
+  onEdit: () => void;
+}
+
+function CollectionTypeCard({
+  collectionType,
+  isDeleting,
+  onAskDelete,
+  onCloseDeletePrompt,
+  onDelete,
+  onEdit,
+}: CardProps) {
+  const { dek } = useEncryption();
+  const decrypted = useDecrypted(collectionType, dek, async (ct, dek) => ({
+    name: await decryptText(ct.name, dek),
+    description: await decryptOptionalText(ct.description, dek),
+  }));
+
+  const name = decrypted?.name ?? "…";
+  const description = decrypted?.description;
+
+  return (
+    <div className="group relative rounded-xl border bg-card p-5 hover:shadow-sm transition-shadow">
+      <div className="flex items-start justify-between gap-2">
+        <Link
+          to={`/collection-types/${collectionType._id}`}
+          className="flex-1 no-underline text-inherit focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
+        >
+          <h3 className="font-semibold leading-tight">{name}</h3>
+          {description && (
+            <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{description}</p>
+          )}
+        </Link>
+        <AlertDialog
+          open={isDeleting}
+          onOpenChange={(open) => !open && onCloseDeletePrompt()}
+        >
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7 opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                aria-label={`Actions for ${name}`}
+              >
+                <MoreHorizontal className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={onEdit}>
+                <Pencil className="size-4" />Edit
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <AlertDialogTrigger asChild>
+                <DropdownMenuItem onClick={onAskDelete}>
+                  <Trash2 className="size-4" />Delete
+                </DropdownMenuItem>
+              </AlertDialogTrigger>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete collection type?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Delete <strong>{name}</strong>? Any collections using this type must be moved off it first.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={onDelete}>
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
     </div>
   );
 }

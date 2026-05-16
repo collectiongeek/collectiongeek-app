@@ -1,19 +1,35 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "convex/react";
 import { api } from "@convex-gen/api";
-import type { Doc } from "@convex-gen/dataModel";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useEncryption } from "@/lib/encryption-provider";
+import { useDecrypted } from "@/lib/use-decrypted";
+import {
+  decryptOptionalArray,
+  decryptOptionalText,
+  decryptText,
+} from "@/lib/encrypted-fields";
 
 const DEBOUNCE_MS = 200;
+const MAX_RESULTS = 20;
 
 interface Props {
   className?: string;
 }
 
+interface SearchableAsset {
+  _id: string;
+  name: string;
+  description?: string;
+  tags?: string[];
+  haystack: string;
+}
+
 export function HeaderSearch({ className }: Props) {
+  const { dek } = useEncryption();
   const [input, setInput] = useState("");
   const [debounced, setDebounced] = useState("");
   const [open, setOpen] = useState(false);
@@ -21,29 +37,39 @@ export function HeaderSearch({ className }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
-  // Stable IDs used to wire the combobox semantics: input → listbox →
-  // active option. The activedescendant pattern keeps DOM focus on the
-  // input while ARIA reports which option is "active".
   const listboxId = useId();
   const optionId = (assetId: string) => `${listboxId}-${assetId}`;
 
-  // Debounce input so we don't fire a new Convex subscription per keystroke.
-  // We also reset the keyboard-focused index here, since it pairs with the
-  // moment the search query actually changes (not with intermediate input).
+  // Subscribe to the whole asset list — there's no server-side search anymore
+  // because ciphertext can't be indexed. We decrypt names/descriptions/tags
+  // once and filter in memory.
+  const assets = useQuery(api.assets.listAllAssets);
+
+  const decrypted = useDecrypted(
+    assets,
+    dek,
+    async (list, dek): Promise<SearchableAsset[]> =>
+      Promise.all(
+        list.map(async (a) => {
+          const name = await decryptText(a.name, dek);
+          const description = await decryptOptionalText(a.description, dek);
+          const tags = await decryptOptionalArray(a.tags, dek);
+          const haystack = [name, description ?? "", ...(tags ?? [])]
+            .join(" ")
+            .toLowerCase();
+          return { _id: a._id, name, description, tags, haystack };
+        })
+      )
+  );
+
   useEffect(() => {
     const id = setTimeout(() => {
-      setDebounced(input.trim());
+      setDebounced(input.trim().toLowerCase());
       setFocusedIndex(0);
     }, DEBOUNCE_MS);
     return () => clearTimeout(id);
   }, [input]);
 
-  const results = useQuery(
-    api.assets.searchAssets,
-    debounced ? { searchQuery: debounced } : "skip"
-  );
-
-  // Close on click outside.
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (!containerRef.current?.contains(e.target as Node)) setOpen(false);
@@ -52,6 +78,13 @@ export function HeaderSearch({ className }: Props) {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  const list = useMemo(() => {
+    if (!debounced || !decrypted) return [];
+    return decrypted
+      .filter((a) => a.haystack.includes(debounced))
+      .slice(0, MAX_RESULTS);
+  }, [debounced, decrypted]);
+
   function dismiss() {
     setOpen(false);
     setInput("");
@@ -59,13 +92,12 @@ export function HeaderSearch({ className }: Props) {
     inputRef.current?.blur();
   }
 
-  function go(asset: Doc<"assets">) {
+  function go(asset: SearchableAsset) {
     dismiss();
     navigate(`/assets/${asset._id}`);
   }
 
   const showPopover = open && debounced.length > 0;
-  const list = results ?? [];
 
   function onKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Escape") {
@@ -117,7 +149,7 @@ export function HeaderSearch({ className }: Props) {
           aria-label="Search results"
           className="absolute left-0 right-0 top-full z-50 mt-1 max-h-96 overflow-y-auto rounded-md border bg-popover p-1 shadow-md"
         >
-          {results === undefined ? (
+          {decrypted === undefined ? (
             <p className="px-2 py-1.5 text-sm text-muted-foreground">
               Searching…
             </p>

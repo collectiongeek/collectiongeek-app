@@ -2,6 +2,9 @@ import { v } from "convex/values";
 import { internalMutation, query } from "./_generated/server";
 import { getUserFromIdentity } from "./auth";
 
+// `name` is ciphertext; `options` is a single ciphertext blob containing the
+// JSON-stringified array (we encrypt once per descriptor, not per option).
+// dataType / required / order stay plaintext — structural, not content.
 const descriptorInput = v.object({
   name: v.string(),
   dataType: v.union(
@@ -12,7 +15,7 @@ const descriptorInput = v.object({
     v.literal("boolean"),
     v.literal("select")
   ),
-  options: v.optional(v.array(v.string())),
+  options: v.optional(v.string()),
   required: v.boolean(),
   order: v.number(),
 });
@@ -118,7 +121,7 @@ export const updateAssetType = internalMutation({
           .query("assetDescriptorValues")
           .withIndex("by_descriptor", (q) => q.eq("descriptorId", d._id))
           .collect();
-        await Promise.all(values.map((v) => ctx.db.delete(v._id)));
+        await Promise.all(values.map((dv) => ctx.db.delete(dv._id)));
         await ctx.db.delete(d._id);
       }
       await Promise.all(

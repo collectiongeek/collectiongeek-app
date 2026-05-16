@@ -37,9 +37,8 @@ func (h *CollectionTypesHandler) CreateCollectionType(w http.ResponseWriter, r *
 		return
 	}
 
-	body.Name = strings.TrimSpace(body.Name)
-	if body.Name == "" || len(body.Name) > 100 {
-		http.Error(w, "Name must be between 1 and 100 characters", http.StatusBadRequest)
+	if body.Name == "" {
+		http.Error(w, "name is required", http.StatusBadRequest)
 		return
 	}
 
@@ -48,7 +47,7 @@ func (h *CollectionTypesHandler) CreateCollectionType(w http.ResponseWriter, r *
 		"name":         body.Name,
 	}
 	if body.Description != "" {
-		args["description"] = strings.TrimSpace(body.Description)
+		args["description"] = body.Description
 	}
 	if len(body.AssetTypeIDs) > 0 {
 		args["assetTypeIds"] = body.AssetTypeIDs
@@ -100,15 +99,14 @@ func (h *CollectionTypesHandler) UpdateCollectionType(w http.ResponseWriter, r *
 		"collectionTypeId": collectionTypeID,
 	}
 	if body.Name != nil {
-		name := strings.TrimSpace(*body.Name)
-		if name == "" || len(name) > 100 {
-			http.Error(w, "Name must be between 1 and 100 characters", http.StatusBadRequest)
+		if *body.Name == "" {
+			http.Error(w, "name is required", http.StatusBadRequest)
 			return
 		}
-		args["name"] = name
+		args["name"] = *body.Name
 	}
 	if body.Description != nil {
-		args["description"] = strings.TrimSpace(*body.Description)
+		args["description"] = *body.Description
 	}
 	if body.AssetTypeIDs != nil {
 		args["assetTypeIds"] = body.AssetTypeIDs

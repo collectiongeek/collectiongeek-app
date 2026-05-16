@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "convex/react";
 import { useAuth } from "@workos-inc/authkit-react";
 import { api } from "@convex-gen/api";
-import type { Doc, Id } from "@convex-gen/dataModel";
+import type { Id } from "@convex-gen/dataModel";
 import { formatCents } from "@/lib/utils";
 import { deleteAsset } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,28 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ChevronLeft, MoreHorizontal, Pencil, Plus, Trash2, Package } from "lucide-react";
 import { toast } from "sonner";
+import { useEncryption } from "@/lib/encryption-provider";
+import { useDecrypted } from "@/lib/use-decrypted";
+import {
+  decryptOptionalArray,
+  decryptOptionalNumber,
+  decryptOptionalText,
+  decryptText,
+} from "@/lib/encrypted-fields";
+
+interface DecryptedCollection {
+  name: string;
+  description?: string;
+  typeName?: string;
+}
+
+interface DecryptedAsset {
+  _id: string;
+  name: string;
+  description?: string;
+  marketValue?: number;
+  tags?: string[];
+}
 
 export function CollectionDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -29,13 +51,44 @@ export function CollectionDetailPage() {
 
 function CollectionDetail({ id }: { id: string }) {
   const { getAccessToken } = useAuth();
+  const { dek } = useEncryption();
   const navigate = useNavigate();
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const collectionId = id as Id<"collections">;
   const collection = useQuery(api.collections.getCollection, { collectionId });
   const assets = useQuery(api.assets.listAssetsInCollection, { collectionId });
-  const valueData = useQuery(api.collections.getCollectionValue, { collectionId });
+
+  const decryptedCollection = useDecrypted(
+    collection,
+    dek,
+    async (data, dek): Promise<DecryptedCollection> => ({
+      name: await decryptText(data.name, dek),
+      description: await decryptOptionalText(data.description, dek),
+      typeName: data.collectionType
+        ? await decryptText(data.collectionType.name, dek)
+        : undefined,
+    })
+  );
+
+  const decryptedAssets = useDecrypted(
+    assets,
+    dek,
+    async (list, dek): Promise<DecryptedAsset[]> =>
+      Promise.all(
+        list.map(async (a) => ({
+          _id: a._id,
+          name: await decryptText(a.name, dek),
+          description: await decryptOptionalText(a.description, dek),
+          marketValue: await decryptOptionalNumber(a.marketValue, dek),
+          tags: await decryptOptionalArray(a.tags, dek),
+        }))
+      )
+  );
+
+  const totalValueCents = decryptedAssets
+    ? decryptedAssets.reduce((sum, a) => sum + (a.marketValue ?? 0), 0)
+    : undefined;
 
   async function handleDeleteAsset(assetId: string) {
     try {
@@ -48,7 +101,12 @@ function CollectionDetail({ id }: { id: string }) {
     }
   }
 
-  if (collection === undefined || assets === undefined) {
+  if (
+    collection === undefined ||
+    assets === undefined ||
+    (collection !== null && !decryptedCollection) ||
+    (assets !== null && !decryptedAssets)
+  ) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-8 w-48" />
@@ -67,6 +125,10 @@ function CollectionDetail({ id }: { id: string }) {
     );
   }
 
+  if (!decryptedCollection || !decryptedAssets) return null;
+
+  const assetCount = decryptedAssets.length;
+
   return (
     <div className="space-y-6">
       <div>
@@ -75,26 +137,29 @@ function CollectionDetail({ id }: { id: string }) {
         </Button>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold">{collection.name}</h1>
-            {collection.description && (
-              <p className="text-muted-foreground mt-1">{collection.description}</p>
+            <h1 className="text-2xl font-bold">{decryptedCollection.name}</h1>
+            {decryptedCollection.description && (
+              <p className="text-muted-foreground mt-1">{decryptedCollection.description}</p>
             )}
             <div className="flex items-center gap-2 mt-2">
-              {collection.collectionType && (
+              {collection.collectionType && decryptedCollection.typeName && (
                 <Link to={`/collection-types/${collection.collectionType._id}`}>
                   <Badge variant="secondary" className="cursor-pointer hover:bg-muted">
-                    {collection.collectionType.name}
+                    {decryptedCollection.typeName}
                   </Badge>
                 </Link>
               )}
-              {valueData && (
-                <span className="text-sm text-muted-foreground">
-                  {valueData.assetCount} asset{valueData.assetCount !== 1 ? "s" : ""} ·{" "}
-                  <span className="font-medium text-foreground">
-                    {formatCents(valueData.totalCents)} total value
-                  </span>
-                </span>
-              )}
+              <span className="text-sm text-muted-foreground">
+                {assetCount} asset{assetCount !== 1 ? "s" : ""}
+                {totalValueCents !== undefined && totalValueCents > 0 && (
+                  <>
+                    {" · "}
+                    <span className="font-medium text-foreground">
+                      {formatCents(totalValueCents)} total value
+                    </span>
+                  </>
+                )}
+              </span>
             </div>
           </div>
           <div className="flex gap-2">
@@ -110,7 +175,7 @@ function CollectionDetail({ id }: { id: string }) {
 
       <Separator />
 
-      {assets.length === 0 ? (
+      {decryptedAssets.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-20 text-center">
           <Package className="size-10 text-muted-foreground mb-4" />
           <h2 className="text-lg font-semibold">No assets yet</h2>
@@ -121,7 +186,7 @@ function CollectionDetail({ id }: { id: string }) {
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {assets.map((asset: Doc<"assets">) => (
+          {decryptedAssets.map((asset) => (
             <div key={asset._id} className="group relative rounded-xl border bg-card p-4 hover:shadow-sm transition-shadow">
               <div className="flex items-start justify-between gap-2">
                 <Link
@@ -162,9 +227,7 @@ function CollectionDetail({ id }: { id: string }) {
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <AlertDialogTrigger asChild>
-                        <DropdownMenuItem
-                          onClick={() => setDeletingId(asset._id)}
-                        >
+                        <DropdownMenuItem onClick={() => setDeletingId(asset._id)}>
                           <Trash2 className="size-4" />Delete
                         </DropdownMenuItem>
                       </AlertDialogTrigger>
@@ -179,9 +242,9 @@ function CollectionDetail({ id }: { id: string }) {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() => handleDeleteAsset(asset._id)}
-                      >Delete</AlertDialogAction>
+                      <AlertDialogAction onClick={() => handleDeleteAsset(asset._id)}>
+                        Delete
+                      </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
@@ -193,3 +256,4 @@ function CollectionDetail({ id }: { id: string }) {
     </div>
   );
 }
+

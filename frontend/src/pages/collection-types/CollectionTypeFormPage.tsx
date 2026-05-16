@@ -13,6 +13,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
+import { useEncryption } from "@/lib/encryption-provider";
+import { useDecrypted } from "@/lib/use-decrypted";
+import {
+  decryptOptionalText,
+  decryptText,
+  encryptOptionalText,
+  encryptText,
+} from "@/lib/encrypted-fields";
+
+interface InitialForm {
+  name: string;
+  description: string;
+  assetTypeIds: string[];
+}
 
 export function CreateCollectionTypePage() {
   return <CollectionTypeForm mode="create" />;
@@ -25,9 +39,20 @@ export function EditCollectionTypePage() {
 }
 
 function EditCollectionTypeLoader({ id }: { id: string }) {
+  const { dek } = useEncryption();
   const data = useQuery(api.collectionTypes.getCollectionType, {
     collectionTypeId: id as Id<"collectionTypes">,
   });
+
+  const initial = useDecrypted(
+    data,
+    dek,
+    async (raw, dek): Promise<InitialForm> => ({
+      name: await decryptText(raw.name, dek),
+      description: (await decryptOptionalText(raw.description, dek)) ?? "",
+      assetTypeIds: raw.assetTypes.map((at) => at._id),
+    })
+  );
 
   if (data === undefined) return <Skeleton className="h-48 w-full max-w-2xl" />;
   if (!data) {
@@ -40,17 +65,14 @@ function EditCollectionTypeLoader({ id }: { id: string }) {
       </div>
     );
   }
+  if (!initial) return <Skeleton className="h-48 w-full max-w-2xl" />;
 
   return (
     <CollectionTypeForm
       key={id}
       mode="edit"
       collectionTypeId={id}
-      initial={{
-        name: data.name,
-        description: data.description ?? "",
-        assetTypeIds: data.assetTypes.map((at) => at._id),
-      }}
+      initial={initial}
     />
   );
 }
@@ -58,15 +80,12 @@ function EditCollectionTypeLoader({ id }: { id: string }) {
 interface FormProps {
   mode: "create" | "edit";
   collectionTypeId?: string;
-  initial?: {
-    name: string;
-    description: string;
-    assetTypeIds: string[];
-  };
+  initial?: InitialForm;
 }
 
 function CollectionTypeForm({ mode, collectionTypeId, initial }: FormProps) {
   const { getAccessToken } = useAuth();
+  const { dek } = useEncryption();
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState(initial?.name ?? "");
@@ -88,14 +107,17 @@ function CollectionTypeForm({ mode, collectionTypeId, initial }: FormProps) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || !dek) return;
     setSaving(true);
     try {
       const token = await getAccessToken();
       if (!token) throw new Error("Not authenticated");
       const payload = {
-        name: name.trim(),
-        description: description.trim() || undefined,
+        name: await encryptText(name.trim(), dek),
+        description: await encryptOptionalText(
+          description.trim() || undefined,
+          dek
+        ),
         assetTypeIds: Array.from(selectedAssetTypeIds),
       };
       if (mode === "create") {
@@ -145,6 +167,7 @@ function CollectionTypeForm({ mode, collectionTypeId, initial }: FormProps) {
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Coins, Brand X…"
                 required
+                maxLength={100}
               />
             </div>
             <div className="space-y-1.5">
@@ -177,17 +200,12 @@ function CollectionTypeForm({ mode, collectionTypeId, initial }: FormProps) {
             ) : (
               <div className="grid gap-2 sm:grid-cols-2">
                 {assetTypes.map((at: Doc<"assetTypes">) => (
-                  <label
+                  <AssetTypeOption
                     key={at._id}
-                    className="flex items-center gap-2 rounded-md border p-2 text-sm cursor-pointer hover:bg-muted/30"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedAssetTypeIds.has(at._id)}
-                      onChange={() => toggleAssetType(at._id)}
-                    />
-                    <span className="truncate">{at.name}</span>
-                  </label>
+                    assetType={at}
+                    checked={selectedAssetTypeIds.has(at._id)}
+                    onToggle={() => toggleAssetType(at._id)}
+                  />
                 ))}
               </div>
             )}
@@ -208,7 +226,7 @@ function CollectionTypeForm({ mode, collectionTypeId, initial }: FormProps) {
           <Button type="button" variant="outline" onClick={() => navigate(backHref)}>
             Cancel
           </Button>
-          <Button type="submit" disabled={!name.trim() || saving}>
+          <Button type="submit" disabled={!name.trim() || saving || !dek}>
             {saving
               ? "Saving…"
               : mode === "create"
@@ -218,5 +236,26 @@ function CollectionTypeForm({ mode, collectionTypeId, initial }: FormProps) {
         </div>
       </form>
     </div>
+  );
+}
+
+interface AssetTypeOptionProps {
+  assetType: Doc<"assetTypes">;
+  checked: boolean;
+  onToggle: () => void;
+}
+
+function AssetTypeOption({ assetType, checked, onToggle }: AssetTypeOptionProps) {
+  const { dek } = useEncryption();
+  const decrypted = useDecrypted(assetType, dek, async (at, dek) => ({
+    name: await decryptText(at.name, dek),
+  }));
+  const name = decrypted?.name ?? "…";
+
+  return (
+    <label className="flex items-center gap-2 rounded-md border p-2 text-sm cursor-pointer hover:bg-muted/30">
+      <input type="checkbox" checked={checked} onChange={onToggle} />
+      <span className="truncate">{name}</span>
+    </label>
   );
 }

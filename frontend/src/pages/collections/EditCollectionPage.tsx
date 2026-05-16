@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "convex/react";
 import { useAuth } from "@workos-inc/authkit-react";
 import { api } from "@convex-gen/api";
-import type { Doc, Id } from "@convex-gen/dataModel";
+import type { Id } from "@convex-gen/dataModel";
 import { updateCollection } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
+import { useEncryption } from "@/lib/encryption-provider";
+import { useDecrypted } from "@/lib/use-decrypted";
+import {
+  decryptOptionalText,
+  decryptText,
+  encryptOptionalText,
+  encryptText,
+} from "@/lib/encrypted-fields";
+
+interface InitialForm {
+  name: string;
+  description: string;
+  collectionTypeId: string;
+}
 
 export function EditCollectionPage() {
   const { id } = useParams<{ id: string }>();
@@ -21,9 +35,20 @@ export function EditCollectionPage() {
 }
 
 function EditCollectionLoader({ id }: { id: string }) {
+  const { dek } = useEncryption();
   const collection = useQuery(api.collections.getCollection, {
     collectionId: id as Id<"collections">,
   });
+
+  const initial = useDecrypted(
+    collection,
+    dek,
+    async (data, dek): Promise<InitialForm> => ({
+      name: await decryptText(data.name, dek),
+      description: (await decryptOptionalText(data.description, dek)) ?? "",
+      collectionTypeId: data.collectionTypeId ?? "",
+    })
+  );
 
   if (collection === undefined) return <Skeleton className="h-48 w-full max-w-lg" />;
   if (!collection) {
@@ -36,30 +61,31 @@ function EditCollectionLoader({ id }: { id: string }) {
       </div>
     );
   }
+  if (!initial) return <Skeleton className="h-48 w-full max-w-lg" />;
 
-  return (
-    <EditCollectionForm
-      key={id}
-      id={id}
-      initial={{
-        name: collection.name,
-        description: collection.description ?? "",
-        collectionTypeId: collection.collectionTypeId ?? "",
-      }}
-    />
-  );
-}
-
-interface InitialForm {
-  name: string;
-  description: string;
-  collectionTypeId: string;
+  return <EditCollectionForm key={id} id={id} initial={initial} />;
 }
 
 function EditCollectionForm({ id, initial }: { id: string; initial: InitialForm }) {
   const { getAccessToken } = useAuth();
+  const { dek } = useEncryption();
   const navigate = useNavigate();
   const collectionTypes = useQuery(api.collectionTypes.listCollectionTypes);
+  const decryptedTypes = useDecrypted(
+    collectionTypes,
+    dek,
+    async (list, dek) =>
+      Promise.all(
+        list.map(async (ct) => ({
+          _id: ct._id,
+          name: await decryptText(ct.name, dek),
+        }))
+      )
+  );
+  // Fallback placeholder names while decryption is in flight.
+  const typeOptions =
+    decryptedTypes ??
+    (collectionTypes ?? []).map((ct) => ({ _id: ct._id, name: "…" }));
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(initial);
 
@@ -69,14 +95,17 @@ function EditCollectionForm({ id, initial }: { id: string; initial: InitialForm 
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.name.trim()) return;
+    if (!form.name.trim() || !dek) return;
     setSaving(true);
     try {
       const token = await getAccessToken();
       if (!token) throw new Error("Not authenticated");
       await updateCollection(token, id, {
-        name: form.name.trim(),
-        description: form.description.trim() || undefined,
+        name: await encryptText(form.name.trim(), dek),
+        description: await encryptOptionalText(
+          form.description.trim() || undefined,
+          dek
+        ),
         collectionTypeId: form.collectionTypeId || undefined,
       });
       toast.success("Collection updated");
@@ -104,7 +133,7 @@ function EditCollectionForm({ id, initial }: { id: string; initial: InitialForm 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="name">Name *</Label>
-              <Input id="name" value={form.name} onChange={(e) => set("name", e.target.value)} required />
+              <Input id="name" value={form.name} onChange={(e) => set("name", e.target.value)} required maxLength={100} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="description">Description</Label>
@@ -119,14 +148,14 @@ function EditCollectionForm({ id, initial }: { id: string; initial: InitialForm 
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
                 <option value="">Untyped</option>
-                {(collectionTypes ?? []).map((ct: Doc<"collectionTypes">) => (
+                {typeOptions.map((ct) => (
                   <option key={ct._id} value={ct._id}>{ct.name}</option>
                 ))}
               </select>
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={() => navigate(`/collections/${id}`)}>Cancel</Button>
-              <Button type="submit" disabled={!form.name.trim() || saving}>
+              <Button type="submit" disabled={!form.name.trim() || saving || !dek}>
                 {saving ? "Saving…" : "Save changes"}
               </Button>
             </div>

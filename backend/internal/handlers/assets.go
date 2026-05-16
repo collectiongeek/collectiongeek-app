@@ -19,6 +19,9 @@ func NewAssetsHandler(convex *convexclient.Client) *AssetsHandler {
 	return &AssetsHandler{convex: convex}
 }
 
+// All user-content fields are zero-knowledge ciphertext. The server can't
+// validate lengths or formats on them — those checks live on the client,
+// before encryption. We just shuttle the blobs through.
 type descriptorValueInput struct {
 	DescriptorID string `json:"descriptorId"`
 	Value        string `json:"value"`
@@ -29,9 +32,9 @@ type createAssetBody struct {
 	Name             string                 `json:"name"`
 	Description      string                 `json:"description"`
 	DateAcquired     string                 `json:"dateAcquired"`
-	PurchasedValue   *int64                 `json:"purchasedValue"`
-	MarketValue      *int64                 `json:"marketValue"`
-	Tags             []string               `json:"tags"`
+	PurchasedValue   string                 `json:"purchasedValue"`
+	MarketValue      string                 `json:"marketValue"`
+	Tags             string                 `json:"tags"`
 	CollectionIDs    []string               `json:"collectionIds"`
 	DescriptorValues []descriptorValueInput `json:"descriptorValues"`
 }
@@ -50,9 +53,11 @@ func (h *AssetsHandler) CreateAsset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body.Name = strings.TrimSpace(body.Name)
-	if body.Name == "" || len(body.Name) > 200 {
-		http.Error(w, "Name must be between 1 and 200 characters", http.StatusBadRequest)
+	// Ciphertext is opaque, but we still require *something* in the name
+	// slot — the client should never send an empty name (validation happens
+	// pre-encryption there).
+	if body.Name == "" {
+		http.Error(w, "name is required", http.StatusBadRequest)
 		return
 	}
 
@@ -64,18 +69,18 @@ func (h *AssetsHandler) CreateAsset(w http.ResponseWriter, r *http.Request) {
 		args["assetTypeId"] = body.AssetTypeID
 	}
 	if body.Description != "" {
-		args["description"] = strings.TrimSpace(body.Description)
+		args["description"] = body.Description
 	}
 	if body.DateAcquired != "" {
 		args["dateAcquired"] = body.DateAcquired
 	}
-	if body.PurchasedValue != nil {
-		args["purchasedValue"] = *body.PurchasedValue
+	if body.PurchasedValue != "" {
+		args["purchasedValue"] = body.PurchasedValue
 	}
-	if body.MarketValue != nil {
-		args["marketValue"] = *body.MarketValue
+	if body.MarketValue != "" {
+		args["marketValue"] = body.MarketValue
 	}
-	if len(body.Tags) > 0 {
+	if body.Tags != "" {
 		args["tags"] = body.Tags
 	}
 	if len(body.CollectionIDs) > 0 {
@@ -133,9 +138,9 @@ func (h *AssetsHandler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 		Name             *string                `json:"name"`
 		Description      *string                `json:"description"`
 		DateAcquired     *string                `json:"dateAcquired"`
-		PurchasedValue   *int64                 `json:"purchasedValue"`
-		MarketValue      *int64                 `json:"marketValue"`
-		Tags             []string               `json:"tags"`
+		PurchasedValue   *string                `json:"purchasedValue"`
+		MarketValue      *string                `json:"marketValue"`
+		Tags             *string                `json:"tags"`
 		CollectionIDs    []string               `json:"collectionIds"`
 		DescriptorValues []descriptorValueInput `json:"descriptorValues"`
 	}
@@ -158,15 +163,14 @@ func (h *AssetsHandler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if body.Name != nil {
-		name := strings.TrimSpace(*body.Name)
-		if name == "" || len(name) > 200 {
-			http.Error(w, "Name must be between 1 and 200 characters", http.StatusBadRequest)
+		if *body.Name == "" {
+			http.Error(w, "name is required", http.StatusBadRequest)
 			return
 		}
-		args["name"] = name
+		args["name"] = *body.Name
 	}
 	if body.Description != nil {
-		args["description"] = strings.TrimSpace(*body.Description)
+		args["description"] = *body.Description
 	}
 	if body.DateAcquired != nil {
 		args["dateAcquired"] = *body.DateAcquired
@@ -178,7 +182,7 @@ func (h *AssetsHandler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 		args["marketValue"] = *body.MarketValue
 	}
 	if body.Tags != nil {
-		args["tags"] = body.Tags
+		args["tags"] = *body.Tags
 	}
 	if body.CollectionIDs != nil {
 		args["collectionIds"] = body.CollectionIDs
