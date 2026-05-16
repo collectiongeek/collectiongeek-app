@@ -35,7 +35,10 @@ export async function encryptOptionalNumber(
   value: number | undefined,
   dek: CryptoKey
 ): Promise<string | undefined> {
-  if (value === undefined || Number.isNaN(value)) return undefined;
+  // Symmetric with decryptOptionalNumber, which uses Number.isFinite to reject
+  // NaN / ±Infinity on read. Without this guard, ±Infinity would be encrypted
+  // as the string "Infinity" and silently round-trip back to undefined.
+  if (value === undefined || !Number.isFinite(value)) return undefined;
   return encryptString(String(value), dek);
 }
 
@@ -64,6 +67,15 @@ export async function decryptText(
   }
 }
 
+/**
+ * Decrypts an optional text field. Inherits decryptText's failure behaviour
+ * by design: if the ciphertext is present but unreadable, return the visible
+ * "[decryption failed]" marker rather than `undefined`. The marker is louder
+ * than a silently-missing field — a user with a corrupted record should see
+ * that something went wrong, not assume the field was always empty. The
+ * other optional decryptors (number, array) can't follow this pattern
+ * because their return type can't carry a sentinel string.
+ */
 export async function decryptOptionalText(
   ciphertext: string | undefined,
   dek: CryptoKey

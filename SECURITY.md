@@ -50,7 +50,7 @@ Plaintext on the server. None of these contain user-authored content beyond what
 
 ## Key model
 
-```
+```text
 recovery code  ── PBKDF2(600k iterations, SHA-256, 16-byte random salt) ──▶  KEK
 DEK            ── random AES-GCM-256, generated in browser            ──▶  encrypts all your data
 DEK            ── AES-GCM wrap with KEK                                ──▶  wrappedDek  (sent to server)

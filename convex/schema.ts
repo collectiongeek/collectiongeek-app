@@ -29,6 +29,11 @@ export default defineSchema({
   // are `v.string()` because we no longer know what's inside; size/format
   // checks moved to the client. Names removed from indexes too — they're
   // ciphertext and can't be sorted/filtered server-side.
+  //
+  // TODO (encryption follow-up): add a shared ciphertext-shape check
+  // (base64 + min/max length) in the write-path mutations so a buggy or
+  // stale client can't persist plaintext into these fields. Shape-only —
+  // doesn't compromise ZK. Tracked alongside CSP/SRI/perf in the followups.
 
   assetTypes: defineTable({
     userId: v.id("users"),

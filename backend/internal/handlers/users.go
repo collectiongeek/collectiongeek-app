@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,6 +13,26 @@ import (
 	convexclient "github.com/collectiongeek/collectiongeek-app/backend/internal/convex"
 	"github.com/collectiongeek/collectiongeek-app/backend/internal/middleware"
 )
+
+// Encryption endpoints carry only the wrapped DEK + salt, each well under
+// 200 bytes base64 in practice. 4KB total is several multiples of the real
+// payload — enough headroom for future versioning without giving a malicious
+// client room to chew memory. Reads past this cap surface from the JSON
+// decoder as "http: request body too large", which we translate to 413.
+const maxEncryptionPayloadBytes int64 = 4 * 1024
+
+// isValidBase64 returns true if s parses as either standard or raw base64.
+// Used to reject obviously malformed wrappedDek / keySalt values before
+// they get persisted — storing a malformed wrap would brick the user's
+// recovery code. The check is on shape, not content, so it doesn't
+// compromise the zero-knowledge model.
+func isValidBase64(s string) bool {
+	if _, err := base64.StdEncoding.DecodeString(s); err == nil {
+		return true
+	}
+	_, err := base64.RawStdEncoding.DecodeString(s)
+	return err == nil
+}
 
 type UsersHandler struct {
 	convex       *convexclient.Client
@@ -95,11 +116,19 @@ func (h *UsersHandler) SetEncryptionKey(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Cap the read upstream of JSON decode so an oversized body is refused
+	// before it's pulled into memory.
+	r.Body = http.MaxBytesReader(w, r.Body, maxEncryptionPayloadBytes)
+
 	var body struct {
 		WrappedDek string `json:"wrappedDek"`
 		KeySalt    string `json:"keySalt"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		if strings.Contains(err.Error(), "http: request body too large") {
+			http.Error(w, "Request body too large", http.StatusRequestEntityTooLarge)
+			return
+		}
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
@@ -107,11 +136,17 @@ func (h *UsersHandler) SetEncryptionKey(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "wrappedDek and keySalt are required", http.StatusBadRequest)
 		return
 	}
-	// Wrapped DEK and salt are small fixed-size cryptographic blobs (well
-	// under 200 bytes base64 in practice). Cap the accepted payload to a
-	// generous 1KB so an unbounded string can't be used to chew memory.
+	// Per-field cap. The outer MaxBytesReader bounds the whole request; this
+	// keeps each individual field within a tight bound even if JSON overhead
+	// changes shape.
 	if len(body.WrappedDek) > 1024 || len(body.KeySalt) > 1024 {
 		http.Error(w, "wrappedDek or keySalt exceeds size limit", http.StatusBadRequest)
+		return
+	}
+	// Storing a malformed wrap would render the user's recovery code useless,
+	// so verify the values parse as base64 (shape, not content — still ZK).
+	if !isValidBase64(body.WrappedDek) || !isValidBase64(body.KeySalt) {
+		http.Error(w, "wrappedDek and keySalt must be valid base64", http.StatusBadRequest)
 		return
 	}
 
@@ -142,11 +177,19 @@ func (h *UsersHandler) RotateEncryptionKey(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	// Cap the read upstream of JSON decode so an oversized body is refused
+	// before it's pulled into memory.
+	r.Body = http.MaxBytesReader(w, r.Body, maxEncryptionPayloadBytes)
+
 	var body struct {
 		WrappedDek string `json:"wrappedDek"`
 		KeySalt    string `json:"keySalt"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		if strings.Contains(err.Error(), "http: request body too large") {
+			http.Error(w, "Request body too large", http.StatusRequestEntityTooLarge)
+			return
+		}
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
@@ -154,11 +197,17 @@ func (h *UsersHandler) RotateEncryptionKey(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "wrappedDek and keySalt are required", http.StatusBadRequest)
 		return
 	}
-	// Wrapped DEK and salt are small fixed-size cryptographic blobs (well
-	// under 200 bytes base64 in practice). Cap the accepted payload to a
-	// generous 1KB so an unbounded string can't be used to chew memory.
+	// Per-field cap. The outer MaxBytesReader bounds the whole request; this
+	// keeps each individual field within a tight bound even if JSON overhead
+	// changes shape.
 	if len(body.WrappedDek) > 1024 || len(body.KeySalt) > 1024 {
 		http.Error(w, "wrappedDek or keySalt exceeds size limit", http.StatusBadRequest)
+		return
+	}
+	// Storing a malformed wrap would render the user's recovery code useless,
+	// so verify the values parse as base64 (shape, not content — still ZK).
+	if !isValidBase64(body.WrappedDek) || !isValidBase64(body.KeySalt) {
+		http.Error(w, "wrappedDek and keySalt must be valid base64", http.StatusBadRequest)
 		return
 	}
 

@@ -21,10 +21,12 @@ export function useDecrypted<TInput, TOutput>(
 
   useEffect(() => {
     if (input == null || dek == null) {
-      // Async clear so we don't trip react-hooks/set-state-in-effect. The
-      // next render will see undefined.
-      const id = setTimeout(() => setOutput(undefined), 0);
-      return () => clearTimeout(id);
+      // Clearing in response to dependency changes is valid React; the lint
+      // rule is conservative here. The previous `setTimeout(..., 0)` workaround
+      // added a frame of latency for no benefit.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setOutput(undefined);
+      return;
     }
     let cancelled = false;
     transform(input, dek)

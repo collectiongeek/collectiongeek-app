@@ -283,9 +283,17 @@ function AssetForm({
     });
   }
 
+  // If the user changes assetTypeId and submits before useDecrypted finishes,
+  // descriptorValuesPayload would silently fall back to [] — dropping the
+  // values the user entered for the prior type and providing none for the
+  // new one. Guard the submit path on this explicitly.
+  const assetTypeDecryptionPending =
+    !!assetTypeId && !decryptedSelectedAssetType;
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name.trim() || !dek) return;
+    if (assetTypeDecryptionPending) return;
     setSaving(true);
     try {
       const token = await getAccessToken();
@@ -529,7 +537,15 @@ function AssetForm({
           <Button type="button" variant="outline" onClick={() => navigate(backHref)}>
             Cancel
           </Button>
-          <Button type="submit" disabled={!form.name.trim() || saving || !dek}>
+          <Button
+            type="submit"
+            disabled={
+              !form.name.trim() ||
+              saving ||
+              !dek ||
+              assetTypeDecryptionPending
+            }
+          >
             {saving ? "Saving…" : mode === "create" ? "Add asset" : "Save changes"}
           </Button>
         </div>
