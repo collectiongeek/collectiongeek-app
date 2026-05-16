@@ -2,12 +2,12 @@
 
 ## Architecture
 
-| Layer | Tech | Location |
-|---|---|---|
-| Frontend | React + Vite + TypeScript + Tailwind v4 + shadcn | `frontend/` |
-| Backend | Go (Chi) — REST API | `backend/` |
-| Database / Realtime | Convex | `convex/` |
-| Auth | WorkOS AuthKit | — |
+| Layer               | Tech                                             | Location    |
+| ------------------- | ------------------------------------------------ | ----------- |
+| Frontend            | React + Vite + TypeScript + Tailwind v4 + shadcn | `frontend/` |
+| Backend             | Go (Chi) — REST API                              | `backend/`  |
+| Database / Realtime | Convex                                           | `convex/`   |
+| Auth                | WorkOS AuthKit                                   | —           |
 
 ## Prerequisites
 
@@ -68,12 +68,12 @@ go run ./cmd/server
 cd frontend && npm run dev
 ```
 
-| Service | URL |
-|---|---|
-| App | http://localhost:3000 |
-| Backend API | http://localhost:8081 |
-| Health check | http://localhost:8081/healthz |
-| Convex dashboard | https://dashboard.convex.dev |
+| Service          | URL                           |
+| ---------------- | ----------------------------- |
+| App              | http://localhost:3000         |
+| Backend API      | http://localhost:8081         |
+| Health check     | http://localhost:8081/healthz |
+| Convex dashboard | https://dashboard.convex.dev  |
 
 > **WorkOS redirect URI:** add `http://localhost:3000/callback` to your WorkOS Staging
 > environment under Authentication → AuthKit → Redirect URIs.
@@ -86,9 +86,9 @@ Tests the Docker build without needing a cluster. Does not use `air` or Vite hot
 docker compose up --build
 ```
 
-| Service | URL |
-|---|---|
-| App | http://localhost:3000 |
+| Service     | URL                   |
+| ----------- | --------------------- |
+| App         | http://localhost:3000 |
 | Backend API | http://localhost:8080 |
 
 > The compose backend reads `CONVEX_DEPLOY_URL`, `CONVEX_DEPLOY_KEY`, and
@@ -103,3 +103,15 @@ Install manually:
 - [`air`](https://github.com/air-verse/air) — `go install github.com/air-verse/air@latest`
 - [Convex CLI](https://docs.convex.dev/cli) — `npm install -g convex`
 - [Claude Code](https://claude.ai/code) — `npm install -g @anthropic-ai/claude-code`
+
+## Security
+
+Application data is end-to-end encrypted in the browser before reaching the
+database — operators, admins, and Convex staff cannot read collection
+contents from the production DB. See [SECURITY.md](SECURITY.md) for the
+threat model, cryptography, recovery model, and what metadata still leaks.
+
+**Reporting a vulnerability:** please email `F U R Y` at
+`knowing.shines5o@icloud.com` rather than opening a public issue. We'll
+acknowledge within a reasonable window and credit you in the fix unless
+you'd rather stay anonymous.

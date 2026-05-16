@@ -17,6 +17,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
+import { useEncryption } from "@/lib/encryption-provider";
+import { useDecrypted } from "@/lib/use-decrypted";
+import {
+  decryptOptionalArray,
+  decryptOptionalNumber,
+  decryptOptionalText,
+  decryptText,
+  encryptOptionalArray,
+  encryptOptionalNumber,
+  encryptOptionalText,
+  encryptText,
+} from "@/lib/encrypted-fields";
 
 type DescriptorDoc = Doc<"assetTypeDescriptors">;
 
@@ -44,6 +56,22 @@ function parseDollarsToCents(s: string): number | undefined {
   return Number.isFinite(n) ? Math.round(n * 100) : undefined;
 }
 
+interface DecryptedDescriptor {
+  _id: string;
+  assetTypeId: string;
+  name: string;
+  dataType: string;
+  required: boolean;
+  order: number;
+  options?: string[];
+}
+
+interface DecryptedSelectedAssetType {
+  _id: string;
+  name: string;
+  descriptors: DecryptedDescriptor[];
+}
+
 export function CreateAssetPage() {
   const { id: collectionId } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
@@ -68,10 +96,58 @@ export function EditAssetPage() {
   return <EditAssetLoader id={id} />;
 }
 
+interface DecryptedAssetForEdit {
+  form: BasicForm;
+  assetTypeId: string;
+  collectionIds: string[];
+  descriptorValues: Record<string, string>;
+}
+
 function EditAssetLoader({ id }: { id: string }) {
+  const { dek } = useEncryption();
   const asset = useQuery(api.assets.getAsset, {
     assetId: id as Id<"assets">,
   });
+
+  const decrypted = useDecrypted(
+    asset,
+    dek,
+    async (raw, dek): Promise<DecryptedAssetForEdit> => {
+      const purchasedCents = await decryptOptionalNumber(
+        raw.purchasedValue,
+        dek
+      );
+      const marketCents = await decryptOptionalNumber(raw.marketValue, dek);
+      const tagsArr = await decryptOptionalArray(raw.tags, dek);
+
+      const dvEntries = await Promise.all(
+        raw.descriptorValues.map(async (dv) => [
+          dv.descriptorId,
+          await decryptText(dv.value, dek),
+        ] as const)
+      );
+
+      return {
+        form: {
+          name: await decryptText(raw.name, dek),
+          description:
+            (await decryptOptionalText(raw.description, dek)) ?? "",
+          dateAcquired:
+            (await decryptOptionalText(raw.dateAcquired, dek)) ?? "",
+          purchasedValue:
+            purchasedCents !== undefined
+              ? (purchasedCents / 100).toFixed(2)
+              : "",
+          marketValue:
+            marketCents !== undefined ? (marketCents / 100).toFixed(2) : "",
+          tags: tagsArr ? tagsArr.join(", ") : "",
+        },
+        assetTypeId: raw.assetTypeId ?? "",
+        collectionIds: raw.collections.map((c) => c._id),
+        descriptorValues: Object.fromEntries(dvEntries),
+      };
+    }
+  );
 
   if (asset === undefined) return <Skeleton className="h-48 w-full max-w-2xl" />;
   if (!asset) {
@@ -84,10 +160,7 @@ function EditAssetLoader({ id }: { id: string }) {
       </div>
     );
   }
-
-  const valuesById = new Map(
-    asset.descriptorValues.map((v) => [v.descriptorId, v.value])
-  );
+  if (!decrypted) return <Skeleton className="h-48 w-full max-w-2xl" />;
 
   return (
     <AssetForm
@@ -95,23 +168,10 @@ function EditAssetLoader({ id }: { id: string }) {
       mode="edit"
       assetId={id}
       backHref={`/assets/${id}`}
-      initialForm={{
-        name: asset.name,
-        description: asset.description ?? "",
-        dateAcquired: asset.dateAcquired ?? "",
-        purchasedValue:
-          asset.purchasedValue !== undefined
-            ? (asset.purchasedValue / 100).toFixed(2)
-            : "",
-        marketValue:
-          asset.marketValue !== undefined
-            ? (asset.marketValue / 100).toFixed(2)
-            : "",
-        tags: asset.tags?.join(", ") ?? "",
-      }}
-      initialAssetTypeId={asset.assetTypeId ?? ""}
-      initialCollectionIds={asset.collections.map((c) => c._id)}
-      initialDescriptorValues={Object.fromEntries(valuesById)}
+      initialForm={decrypted.form}
+      initialAssetTypeId={decrypted.assetTypeId}
+      initialCollectionIds={decrypted.collectionIds}
+      initialDescriptorValues={decrypted.descriptorValues}
     />
   );
 }
@@ -136,6 +196,7 @@ function AssetForm({
   initialDescriptorValues,
 }: AssetFormProps) {
   const { getAccessToken } = useAuth();
+  const { dek } = useEncryption();
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<BasicForm>(initialForm ?? EMPTY_FORM);
@@ -156,6 +217,59 @@ function AssetForm({
       : "skip"
   );
 
+  const decryptedAssetTypes = useDecrypted(
+    assetTypes,
+    dek,
+    async (list, dek) =>
+      Promise.all(
+        list.map(async (at) => ({
+          _id: at._id,
+          name: await decryptText(at.name, dek),
+        }))
+      )
+  );
+
+  const decryptedCollections = useDecrypted(
+    collections,
+    dek,
+    async (list, dek) =>
+      Promise.all(
+        list.map(async (c) => ({
+          _id: c._id,
+          name: await decryptText(c.name, dek),
+        }))
+      )
+  );
+
+  const decryptedSelectedAssetType = useDecrypted(
+    selectedAssetType,
+    dek,
+    async (data, dek): Promise<DecryptedSelectedAssetType> => ({
+      _id: data._id,
+      name: await decryptText(data.name, dek),
+      descriptors: await Promise.all(
+        data.descriptors.map(async (d: DescriptorDoc) => ({
+          _id: d._id,
+          assetTypeId: d.assetTypeId,
+          name: await decryptText(d.name, dek),
+          dataType: d.dataType,
+          required: d.required,
+          order: d.order,
+          options: await decryptOptionalArray(d.options, dek),
+        }))
+      ),
+    })
+  );
+
+  // Fallback placeholder names while decryption is in flight, so the dropdown
+  // and checkbox lists stay the right length and the user can still interact.
+  const assetTypeOptions =
+    decryptedAssetTypes ??
+    (assetTypes ?? []).map((at) => ({ _id: at._id, name: "…" }));
+  const collectionOptions =
+    decryptedCollections ??
+    (collections ?? []).map((c) => ({ _id: c._id, name: "…" }));
+
   function set(field: keyof BasicForm, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
@@ -171,7 +285,7 @@ function AssetForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.name.trim()) return;
+    if (!form.name.trim() || !dek) return;
     setSaving(true);
     try {
       const token = await getAccessToken();
@@ -183,13 +297,20 @@ function AssetForm({
         .filter(Boolean);
 
       const descriptorValuesPayload: DescriptorValueInput[] =
-        selectedAssetType && selectedAssetType.descriptors.length > 0
-          ? selectedAssetType.descriptors
-              .map((d) => ({
-                descriptorId: d._id,
-                value: descriptorValues[d._id] ?? "",
-              }))
-              .filter((dv) => dv.value !== "")
+        decryptedSelectedAssetType &&
+        decryptedSelectedAssetType.descriptors.length > 0
+          ? await Promise.all(
+              decryptedSelectedAssetType.descriptors
+                .map((d) => ({
+                  descriptorId: d._id,
+                  raw: descriptorValues[d._id] ?? "",
+                }))
+                .filter((dv) => dv.raw !== "")
+                .map(async (dv) => ({
+                  descriptorId: dv.descriptorId,
+                  value: await encryptText(dv.raw, dek),
+                }))
+            )
           : [];
 
       const payload = {
@@ -197,12 +318,24 @@ function AssetForm({
         // it as "clear the asset type" (it translates "" → null for Convex).
         // In create mode, the Go handler treats "" as omitted anyway.
         assetTypeId: mode === "edit" ? assetTypeId : assetTypeId || undefined,
-        name: form.name.trim(),
-        description: form.description.trim() || undefined,
-        dateAcquired: form.dateAcquired || undefined,
-        purchasedValue: parseDollarsToCents(form.purchasedValue),
-        marketValue: parseDollarsToCents(form.marketValue),
-        tags: tags.length ? tags : undefined,
+        name: await encryptText(form.name.trim(), dek),
+        description: await encryptOptionalText(
+          form.description.trim() || undefined,
+          dek
+        ),
+        dateAcquired: await encryptOptionalText(
+          form.dateAcquired || undefined,
+          dek
+        ),
+        purchasedValue: await encryptOptionalNumber(
+          parseDollarsToCents(form.purchasedValue),
+          dek
+        ),
+        marketValue: await encryptOptionalNumber(
+          parseDollarsToCents(form.marketValue),
+          dek
+        ),
+        tags: await encryptOptionalArray(tags.length ? tags : undefined, dek),
         collectionIds: Array.from(selectedCollections),
         descriptorValues: descriptorValuesPayload,
       };
@@ -249,6 +382,7 @@ function AssetForm({
                 onChange={(e) => set("name", e.target.value)}
                 placeholder="1921 Morgan Silver Dollar"
                 required
+                maxLength={200}
               />
             </div>
             <div className="space-y-1.5">
@@ -269,7 +403,7 @@ function AssetForm({
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
                 <option value="">Untyped</option>
-                {(assetTypes ?? []).map((at: Doc<"assetTypes">) => (
+                {assetTypeOptions.map((at) => (
                   <option key={at._id} value={at._id}>
                     {at.name}
                   </option>
@@ -337,27 +471,28 @@ function AssetForm({
           </CardContent>
         </Card>
 
-        {selectedAssetType && selectedAssetType.descriptors.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
-                {selectedAssetType.name} details
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {selectedAssetType.descriptors.map((d: DescriptorDoc) => (
-                <DescriptorField
-                  key={d._id}
-                  descriptor={d}
-                  value={descriptorValues[d._id] ?? ""}
-                  onChange={(v) =>
-                    setDescriptorValues((prev) => ({ ...prev, [d._id]: v }))
-                  }
-                />
-              ))}
-            </CardContent>
-          </Card>
-        )}
+        {decryptedSelectedAssetType &&
+          decryptedSelectedAssetType.descriptors.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">
+                  {decryptedSelectedAssetType.name} details
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {decryptedSelectedAssetType.descriptors.map((d) => (
+                  <DescriptorField
+                    key={d._id}
+                    descriptor={d}
+                    value={descriptorValues[d._id] ?? ""}
+                    onChange={(v) =>
+                      setDescriptorValues((prev) => ({ ...prev, [d._id]: v }))
+                    }
+                  />
+                ))}
+              </CardContent>
+            </Card>
+          )}
 
         <Card>
           <CardHeader>
@@ -372,7 +507,7 @@ function AssetForm({
               </p>
             ) : (
               <div className="grid gap-2 sm:grid-cols-2">
-                {collections.map((c: Doc<"collections">) => (
+                {collectionOptions.map((c) => (
                   <label
                     key={c._id}
                     className="flex items-center gap-2 rounded-md border p-2 text-sm cursor-pointer hover:bg-muted/30"
@@ -394,7 +529,7 @@ function AssetForm({
           <Button type="button" variant="outline" onClick={() => navigate(backHref)}>
             Cancel
           </Button>
-          <Button type="submit" disabled={!form.name.trim() || saving}>
+          <Button type="submit" disabled={!form.name.trim() || saving || !dek}>
             {saving ? "Saving…" : mode === "create" ? "Add asset" : "Save changes"}
           </Button>
         </div>
@@ -408,7 +543,7 @@ function DescriptorField({
   value,
   onChange,
 }: {
-  descriptor: DescriptorDoc;
+  descriptor: DecryptedDescriptor;
   value: string;
   onChange: (v: string) => void;
 }) {

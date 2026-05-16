@@ -18,6 +18,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, Pencil, Plus, Tags, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { useEncryption } from "@/lib/encryption-provider";
+import { useDecrypted } from "@/lib/use-decrypted";
+import {
+  decryptOptionalText,
+  decryptText,
+} from "@/lib/encrypted-fields";
 
 export function AssetTypesListPage() {
   const { getAccessToken } = useAuth();
@@ -69,62 +75,110 @@ export function AssetTypesListPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {assetTypes.map((at: Doc<"assetTypes">) => (
-            <div key={at._id} className="group relative rounded-xl border bg-card p-5 hover:shadow-sm transition-shadow">
-              <div className="flex items-start justify-between gap-2">
-                <Link
-                  to={`/asset-types/${at._id}`}
-                  className="flex-1 no-underline text-inherit focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
-                >
-                  <h3 className="font-semibold leading-tight">{at.name}</h3>
-                  {at.description && (
-                    <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{at.description}</p>
-                  )}
-                </Link>
-
-                <AlertDialog open={deletingId === at._id} onOpenChange={(open) => !open && setDeletingId(null)}>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-7 opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
-                        aria-label={`Actions for ${at.name}`}
-                      >
-                        <MoreHorizontal className="size-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => navigate(`/asset-types/${at._id}/edit`)}>
-                        <Pencil className="size-4" />Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <AlertDialogTrigger asChild>
-                        <DropdownMenuItem onClick={() => setDeletingId(at._id)}>
-                          <Trash2 className="size-4" />Delete
-                        </DropdownMenuItem>
-                      </AlertDialogTrigger>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete asset type?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Delete <strong>{at.name}</strong>? Any assets using this type must be moved off it first.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => handleDelete(at._id)}>
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
-            </div>
+            <AssetTypeCard
+              key={at._id}
+              assetType={at}
+              isDeleting={deletingId === at._id}
+              onAskDelete={() => setDeletingId(at._id)}
+              onCloseDeletePrompt={() => setDeletingId(null)}
+              onDelete={() => handleDelete(at._id)}
+              onEdit={() => navigate(`/asset-types/${at._id}/edit`)}
+            />
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+interface CardProps {
+  assetType: Doc<"assetTypes">;
+  isDeleting: boolean;
+  onAskDelete: () => void;
+  onCloseDeletePrompt: () => void;
+  onDelete: () => void;
+  onEdit: () => void;
+}
+
+function AssetTypeCard({
+  assetType,
+  isDeleting,
+  onAskDelete,
+  onCloseDeletePrompt,
+  onDelete,
+  onEdit,
+}: CardProps) {
+  const { dek } = useEncryption();
+  const decrypted = useDecrypted(
+    assetType,
+    dek,
+    async (at, dek) => ({
+      name: await decryptText(at.name, dek),
+      description: await decryptOptionalText(at.description, dek),
+    })
+  );
+
+  const name = decrypted?.name ?? "…";
+  const description = decrypted?.description;
+
+  return (
+    <div className="group relative rounded-xl border bg-card p-5 hover:shadow-sm transition-shadow">
+      <div className="flex items-start justify-between gap-2">
+        <Link
+          to={`/asset-types/${assetType._id}`}
+          className="flex-1 no-underline text-inherit focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
+        >
+          <h3 className="font-semibold leading-tight">{name}</h3>
+          {description && (
+            <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
+              {description}
+            </p>
+          )}
+        </Link>
+
+        <AlertDialog
+          open={isDeleting}
+          onOpenChange={(open) => !open && onCloseDeletePrompt()}
+        >
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7 opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                aria-label={`Actions for ${name}`}
+              >
+                <MoreHorizontal className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={onEdit}>
+                <Pencil className="size-4" />Edit
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <AlertDialogTrigger asChild>
+                <DropdownMenuItem onClick={onAskDelete}>
+                  <Trash2 className="size-4" />Delete
+                </DropdownMenuItem>
+              </AlertDialogTrigger>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete asset type?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Delete <strong>{name}</strong>? Any assets using this type must be moved off it first.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={onDelete}>
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
     </div>
   );
 }

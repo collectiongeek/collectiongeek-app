@@ -5,6 +5,12 @@ import { useQuery } from "convex/react";
 import { api } from "@convex-gen/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UsernameSetup } from "@/components/auth/UsernameSetup";
+import { RecoveryCodeSetup } from "@/components/auth/RecoveryCodeSetup";
+import { NewDeviceUnlock } from "@/components/auth/NewDeviceUnlock";
+import {
+  EncryptionProvider,
+  useEncryption,
+} from "@/lib/encryption-provider";
 import { ensureUser } from "@/lib/api";
 
 export function ProtectedRoute() {
@@ -57,15 +63,7 @@ export function ProtectedRoute() {
 
   // Show skeleton while auth loads, Convex query loads, or user record is being created.
   if (authLoading || convexUser === undefined || convexUser === null) {
-    return (
-      <div className="min-h-screen bg-background p-8">
-        <div className="mx-auto max-w-5xl space-y-4">
-          <Skeleton className="h-8 w-48" />
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-32 w-full" />
-        </div>
-      </div>
-    );
+    return <ProtectedRouteSkeleton />;
   }
 
   if (!user) return null;
@@ -75,5 +73,42 @@ export function ProtectedRoute() {
     return <UsernameSetup />;
   }
 
+  // Past the username gate, hand off to the encryption layer. The provider
+  // checks IndexedDB for an existing DEK and either lets the user through,
+  // routes them to setup (no wrappedDek on server yet), or to new-device
+  // unlock (server has wrappedDek but this device has no DEK).
+  return (
+    <EncryptionProvider
+      // key forces a clean remount when the user changes (e.g. sign-out
+      // followed by a different user signing in), avoiding any need for
+      // user-change-reset effects inside the provider.
+      key={user.id ?? "anon"}
+      workosUserId={user.id ?? null}
+      wrappedDek={convexUser.wrappedDek}
+      keySalt={convexUser.keySalt}
+      convexUserLoading={false}
+    >
+      <EncryptionGate />
+    </EncryptionProvider>
+  );
+}
+
+function EncryptionGate() {
+  const { status } = useEncryption();
+  if (status === "loading") return <ProtectedRouteSkeleton />;
+  if (status === "needs-setup") return <RecoveryCodeSetup />;
+  if (status === "needs-unlock") return <NewDeviceUnlock />;
   return <Outlet />;
+}
+
+function ProtectedRouteSkeleton() {
+  return (
+    <div className="min-h-screen bg-background p-8">
+      <div className="mx-auto max-w-5xl space-y-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-32 w-full" />
+        <Skeleton className="h-32 w-full" />
+      </div>
+    </div>
+  );
 }

@@ -39,6 +39,9 @@ import {
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useEncryption } from "@/lib/encryption-provider";
+import { useDecrypted } from "@/lib/use-decrypted";
+import { decryptOptionalNumber, decryptOptionalText, decryptText } from "@/lib/encrypted-fields";
 
 const SHOW_VALUES_KEY = "cg.showCollectionValues";
 
@@ -55,7 +58,7 @@ function CollectionAssetCount({
 }: {
   collectionId: Id<"collections">;
 }) {
-  const data = useQuery(api.collections.getCollectionValue, { collectionId });
+  const data = useQuery(api.collections.getCollectionAssetCount, { collectionId });
   if (data === undefined || data === null) return null;
   return (
     <span className="text-xs text-muted-foreground font-normal whitespace-nowrap">
@@ -64,21 +67,38 @@ function CollectionAssetCount({
   );
 }
 
+// Known tradeoff: when "Show total values" is on, this component mounts once
+// per visible collection card, so we issue N reactive `listAssetsInCollection`
+// queries and decrypt every asset's marketValue client-side. The server can't
+// sum ciphertext for us — that's the cost of zero-knowledge. Fine for tens to
+// low hundreds of assets; queued for a follow-up PR (lazy-load on demand or
+// memoize decrypted totals across toggles). See `project_encryption_followups`
+// in the working notes.
 function CollectionTotalValue({
   collectionId,
 }: {
   collectionId: Id<"collections">;
 }) {
-  const data = useQuery(api.collections.getCollectionValue, { collectionId });
-  if (data === undefined) return <Skeleton className="mt-2 h-4 w-24" />;
-  if (data === null) return null;
-  return (
-    <p className="mt-2 text-sm font-medium">{formatCents(data.totalCents)}</p>
+  const { dek } = useEncryption();
+  const assets = useQuery(api.assets.listAssetsInCollection, { collectionId });
+  const total = useDecrypted(
+    assets,
+    dek,
+    async (list, dek) => {
+      const values = await Promise.all(
+        list.map((a) => decryptOptionalNumber(a.marketValue, dek))
+      );
+      return values.reduce<number>((sum, v) => sum + (v ?? 0), 0);
+    }
   );
+
+  if (assets === undefined || total === undefined) return <Skeleton className="mt-2 h-4 w-24" />;
+  return <p className="mt-2 text-sm font-medium">{formatCents(total)}</p>;
 }
 
 export function DashboardPage() {
   const { getAccessToken } = useAuth();
+  const { dek } = useEncryption();
   const navigate = useNavigate();
   const collections = useQuery(api.collections.listCollections);
   const collectionTypes = useQuery(api.collectionTypes.listCollectionTypes);
@@ -86,6 +106,31 @@ export function DashboardPage() {
   const assetCount = useQuery(api.assets.getAssetCount);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showValues, setShowValues] = useState(readShowValues);
+
+  const decryptedCollections = useDecrypted(
+    collections,
+    dek,
+    async (list, dek) =>
+      Promise.all(
+        list.map(async (c) => ({
+          _id: c._id,
+          collectionTypeId: c.collectionTypeId,
+          name: await decryptText(c.name, dek),
+          description: await decryptOptionalText(c.description, dek),
+        }))
+      )
+  );
+
+  const typeNameById = useDecrypted(
+    collectionTypes,
+    dek,
+    async (list, dek) => {
+      const entries = await Promise.all(
+        list.map(async (ct) => [ct._id, await decryptText(ct.name, dek)] as const)
+      );
+      return new Map<string, string>(entries);
+    }
+  );
 
   function toggleShowValues() {
     setShowValues((prev) => {
@@ -99,16 +144,12 @@ export function DashboardPage() {
     });
   }
 
-  const typeNameById = new Map(
-    (collectionTypes ?? []).map((ct: Doc<"collectionTypes">) => [ct._id, ct.name])
-  );
-
   const sortedCollections = useMemo(
     () =>
-      [...(collections ?? [])].sort((a, b) =>
+      [...(decryptedCollections ?? [])].sort((a, b) =>
         a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
       ),
-    [collections]
+    [decryptedCollections]
   );
 
   async function handleDelete(id: string) {
@@ -241,94 +282,100 @@ export function DashboardPage() {
               </Link>
             </Button>
           </div>
+        ) : !decryptedCollections ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {collections.map((col: Doc<"collections">) => (
+              <Skeleton key={col._id} className="h-24 w-full" />
+            ))}
+          </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {sortedCollections.map((col: Doc<"collections">) => {
+            {sortedCollections.map((col) => {
               const typeName = col.collectionTypeId
-                ? typeNameById.get(col.collectionTypeId)
+                ? typeNameById?.get(col.collectionTypeId)
                 : undefined;
               return (
-              <div
-                key={col._id}
-                className="group relative rounded-xl border bg-card p-5 hover:shadow-sm transition-shadow"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <Link
-                    to={`/collections/${col._id}`}
-                    className="flex-1 no-underline text-inherit focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
-                  >
-                    <div className="flex items-baseline gap-2">
-                      <h3 className="font-semibold leading-tight">{col.name}</h3>
-                      <CollectionAssetCount collectionId={col._id} />
-                    </div>
-                    {col.description && (
-                      <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
-                        {col.description}
-                      </p>
-                    )}
-                    {typeName && (
-                      <Badge variant="secondary" className="mt-2">
-                        {typeName}
-                      </Badge>
-                    )}
-                    {showValues && <CollectionTotalValue collectionId={col._id} />}
-                  </Link>
+                <div
+                  key={col._id}
+                  className="group relative rounded-xl border bg-card p-5 hover:shadow-sm transition-shadow"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <Link
+                      to={`/collections/${col._id}`}
+                      className="flex-1 no-underline text-inherit focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
+                    >
+                      <div className="flex items-baseline gap-2">
+                        <h3 className="font-semibold leading-tight">{col.name}</h3>
+                        <CollectionAssetCount collectionId={col._id} />
+                      </div>
+                      {col.description && (
+                        <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
+                          {col.description}
+                        </p>
+                      )}
+                      {typeName && (
+                        <Badge variant="secondary" className="mt-2">
+                          {typeName}
+                        </Badge>
+                      )}
+                      {showValues && <CollectionTotalValue collectionId={col._id} />}
+                    </Link>
 
-                  <AlertDialog
-                    open={deletingId === col._id}
-                    onOpenChange={(open) => !open && setDeletingId(null)}
-                  >
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-7 opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
-                          aria-label={`Actions for ${col.name}`}
-                        >
-                          <MoreHorizontal className="size-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => navigate(`/collections/${col._id}/edit`)}
-                        >
-                          <Pencil className="size-4" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <AlertDialogTrigger asChild>
-                          <DropdownMenuItem
-                            onClick={() => setDeletingId(col._id)}
+                    <AlertDialog
+                      open={deletingId === col._id}
+                      onOpenChange={(open) => !open && setDeletingId(null)}
+                    >
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-7 opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                            aria-label={`Actions for ${col.name}`}
                           >
-                            <Trash2 className="size-4" />
-                            Delete
+                            <MoreHorizontal className="size-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => navigate(`/collections/${col._id}/edit`)}
+                          >
+                            <Pencil className="size-4" />
+                            Edit
                           </DropdownMenuItem>
-                        </AlertDialogTrigger>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                          <DropdownMenuSeparator />
+                          <AlertDialogTrigger asChild>
+                            <DropdownMenuItem
+                              onClick={() => setDeletingId(col._id)}
+                            >
+                              <Trash2 className="size-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          </AlertDialogTrigger>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
 
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete collection?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This will permanently delete <strong>{col.name}</strong>.
-                          Assets in this collection will not be deleted, but they will
-                          be removed from this collection.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => handleDelete(col._id)}
-                        >
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete collection?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will permanently delete <strong>{col.name}</strong>.
+                            Assets in this collection will not be deleted, but they will
+                            be removed from this collection.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDelete(col._id)}
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                 </div>
-              </div>
               );
             })}
           </div>

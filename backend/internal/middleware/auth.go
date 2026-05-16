@@ -50,6 +50,7 @@ func (m *JWKSMiddleware) Authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token, err := m.extractAndValidate(r)
 		if err != nil {
+			log.Printf("auth: rejecting %s %s: %v", r.Method, r.URL.Path, err)
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}

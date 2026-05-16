@@ -12,11 +12,37 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
+import { useEncryption } from "@/lib/encryption-provider";
+import { useDecrypted } from "@/lib/use-decrypted";
+import { decryptText, encryptOptionalText, encryptText } from "@/lib/encrypted-fields";
 
 export function CreateCollectionPage() {
   const { getAccessToken } = useAuth();
+  const { dek } = useEncryption();
   const navigate = useNavigate();
   const collectionTypes = useQuery(api.collectionTypes.listCollectionTypes);
+
+  const decryptedTypes = useDecrypted(
+    collectionTypes,
+    dek,
+    async (list, dek) =>
+      Promise.all(
+        list.map(async (ct) => ({
+          _id: ct._id,
+          name: await decryptText(ct.name, dek),
+        }))
+      )
+  );
+
+  // While decryption is in flight, fall back to the raw list with a placeholder
+  // name so the dropdown stays the right length and the user can still select.
+  const typeOptions =
+    decryptedTypes ??
+    (collectionTypes ?? []).map((ct: Doc<"collectionTypes">) => ({
+      _id: ct._id,
+      name: "…",
+    }));
+
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     name: "",
@@ -30,14 +56,17 @@ export function CreateCollectionPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.name.trim()) return;
+    if (!form.name.trim() || !dek) return;
     setSaving(true);
     try {
       const token = await getAccessToken();
       if (!token) throw new Error("Not authenticated");
       const { id } = await createCollection(token, {
-        name: form.name.trim(),
-        description: form.description.trim() || undefined,
+        name: await encryptText(form.name.trim(), dek),
+        description: await encryptOptionalText(
+          form.description.trim() || undefined,
+          dek
+        ),
         collectionTypeId: form.collectionTypeId || undefined,
       });
       toast.success("Collection created");
@@ -74,6 +103,7 @@ export function CreateCollectionPage() {
                 onChange={(e) => set("name", e.target.value)}
                 placeholder="My Coin Collection"
                 required
+                maxLength={100}
               />
             </div>
 
@@ -97,7 +127,7 @@ export function CreateCollectionPage() {
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
                 <option value="">Untyped</option>
-                {(collectionTypes ?? []).map((ct: Doc<"collectionTypes">) => (
+                {typeOptions.map((ct) => (
                   <option key={ct._id} value={ct._id}>
                     {ct.name}
                   </option>
@@ -115,7 +145,7 @@ export function CreateCollectionPage() {
               <Button type="button" variant="outline" onClick={() => navigate("/dashboard")}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={!form.name.trim() || saving}>
+              <Button type="submit" disabled={!form.name.trim() || saving || !dek}>
                 {saving ? "Creating…" : "Create collection"}
               </Button>
             </div>

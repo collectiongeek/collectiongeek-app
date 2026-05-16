@@ -5,6 +5,17 @@ import { api } from "@convex-gen/api";
 import { BookOpen, LogOut, Menu, Settings, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -13,6 +24,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ThemePicker } from "@/components/layout/ThemePicker";
 import { HeaderSearch } from "@/components/layout/HeaderSearch";
+import { useEncryption } from "@/lib/encryption-provider";
 
 const navItems = [
   { to: "/dashboard", label: "Collections" },
@@ -23,9 +35,14 @@ const navItems = [
 
 export function Layout() {
   const { user, signOut } = useAuth();
+  const { clearLocalKey } = useEncryption();
   const convexUser = useQuery(api.users.getUser);
 
   async function handleSignOut() {
+    // Wipe the local DEK first so a re-sign-in on this browser has to
+    // re-enter the recovery code — the deliberate-sign-out act should
+    // require a deliberate-sign-in to regain access to encrypted data.
+    await clearLocalKey();
     // signOut({ navigate: false }) clears the in-memory JWT and localStorage
     // refresh tokens, and (after we await) the fire-and-forget fetch to the
     // WorkOS logout endpoint completes — invalidating the server-side
@@ -100,35 +117,53 @@ export function Layout() {
                 </DropdownMenuContent>
               </DropdownMenu>
               <ThemePicker />
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" aria-label="Account menu">
-                    <User className="size-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <div className="px-2 py-1.5 text-sm text-muted-foreground text-center">
-                  {convexUser === undefined
-                    ? " "
-                    : convexUser?.username || user.email}
-                </div>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link to="/settings" className="cursor-pointer">
-                    <Settings className="size-4" />
-                    Settings
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="cursor-pointer"
-                  onClick={handleSignOut}
-                >
-                  <LogOut className="size-4" />
-                  Sign out
-                </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <AlertDialog>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" aria-label="Account menu">
+                      <User className="size-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground text-center">
+                      {convexUser === undefined
+                        ? " "
+                        : convexUser?.username || user.email}
+                    </div>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link to="/settings" className="cursor-pointer">
+                        <Settings className="size-4" />
+                        Settings
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <AlertDialogTrigger asChild>
+                      <DropdownMenuItem className="cursor-pointer">
+                        <LogOut className="size-4" />
+                        Sign out
+                      </DropdownMenuItem>
+                    </AlertDialogTrigger>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure you want to sign out?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      For your security, this device will forget the key that
+                      decrypts your data. In order to use the app and see your
+                      data, you'll need your <strong>recovery code</strong> to
+                      sign back in here.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleSignOut}>
+                      Sign out
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           )}
         </div>

@@ -19,12 +19,15 @@ func NewAssetTypesHandler(convex *convexclient.Client) *AssetTypesHandler {
 	return &AssetTypesHandler{convex: convex}
 }
 
+// Name and options are ciphertext blobs from the client (see crypto module).
+// Options is a single ciphertext string containing the JSON-encoded array,
+// not an array of strings — we encrypt once per descriptor.
 type descriptorInput struct {
-	Name     string   `json:"name"`
-	DataType string   `json:"dataType"`
-	Options  []string `json:"options,omitempty"`
-	Required bool     `json:"required"`
-	Order    int      `json:"order"`
+	Name     string `json:"name"`
+	DataType string `json:"dataType"`
+	Options  string `json:"options,omitempty"`
+	Required bool   `json:"required"`
+	Order    int    `json:"order"`
 }
 
 var allowedDataTypes = map[string]bool{
@@ -36,17 +39,17 @@ var allowedDataTypes = map[string]bool{
 	"select":  true,
 }
 
+// Validates only the structural parts (dataType + required + order). Content
+// fields (name, options) are ciphertext and validated on the client.
 func validateDescriptors(ds []descriptorInput) (string, bool) {
-	for i, d := range ds {
-		name := strings.TrimSpace(d.Name)
-		if name == "" || len(name) > 100 {
-			return "Descriptor name must be 1-100 characters", false
+	for _, d := range ds {
+		if d.Name == "" {
+			return "Descriptor name is required", false
 		}
-		ds[i].Name = name
 		if !allowedDataTypes[d.DataType] {
 			return "Invalid descriptor data type", false
 		}
-		if d.DataType == "select" && len(d.Options) == 0 {
+		if d.DataType == "select" && d.Options == "" {
 			return "Select descriptor requires options", false
 		}
 	}
@@ -71,9 +74,8 @@ func (h *AssetTypesHandler) CreateAssetType(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	body.Name = strings.TrimSpace(body.Name)
-	if body.Name == "" || len(body.Name) > 100 {
-		http.Error(w, "Name must be between 1 and 100 characters", http.StatusBadRequest)
+	if body.Name == "" {
+		http.Error(w, "name is required", http.StatusBadRequest)
 		return
 	}
 	if msg, ok := validateDescriptors(body.Descriptors); !ok {
@@ -86,7 +88,7 @@ func (h *AssetTypesHandler) CreateAssetType(w http.ResponseWriter, r *http.Reque
 		"name":         body.Name,
 	}
 	if body.Description != "" {
-		args["description"] = strings.TrimSpace(body.Description)
+		args["description"] = body.Description
 	}
 	if len(body.Descriptors) > 0 {
 		args["descriptors"] = body.Descriptors
@@ -130,15 +132,14 @@ func (h *AssetTypesHandler) UpdateAssetType(w http.ResponseWriter, r *http.Reque
 		"assetTypeId":  assetTypeID,
 	}
 	if body.Name != nil {
-		name := strings.TrimSpace(*body.Name)
-		if name == "" || len(name) > 100 {
-			http.Error(w, "Name must be between 1 and 100 characters", http.StatusBadRequest)
+		if *body.Name == "" {
+			http.Error(w, "name is required", http.StatusBadRequest)
 			return
 		}
-		args["name"] = name
+		args["name"] = *body.Name
 	}
 	if body.Description != nil {
-		args["description"] = strings.TrimSpace(*body.Description)
+		args["description"] = *body.Description
 	}
 	if body.Descriptors != nil {
 		if msg, ok := validateDescriptors(body.Descriptors); !ok {

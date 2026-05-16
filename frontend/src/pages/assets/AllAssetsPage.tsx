@@ -7,6 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Package, Plus } from "lucide-react";
+import { useEncryption } from "@/lib/encryption-provider";
+import { useDecrypted } from "@/lib/use-decrypted";
+import {
+  decryptOptionalArray,
+  decryptOptionalNumber,
+  decryptOptionalText,
+  decryptText,
+} from "@/lib/encrypted-fields";
 
 export function AllAssetsPage() {
   const assets = useQuery(api.assets.listAllAssets);
@@ -43,35 +51,50 @@ export function AllAssetsPage() {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {assets.map((asset: Doc<"assets">) => (
-            <Link
-              key={asset._id}
-              to={`/assets/${asset._id}`}
-              className="group relative block rounded-xl border bg-card p-4 hover:shadow-sm transition-shadow no-underline text-inherit focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <p className="font-medium leading-tight truncate">{asset.name}</p>
-              {asset.description && (
-                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                  {asset.description}
-                </p>
-              )}
-              {asset.marketValue !== undefined && (
-                <p className="text-sm font-semibold mt-1">
-                  {formatCents(asset.marketValue)}
-                </p>
-              )}
-              {asset.tags && asset.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-1.5">
-                  {asset.tags.slice(0, 3).map((tag: string) => (
-                    <Badge key={tag} variant="outline" className="text-xs px-1.5 py-0">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </Link>
+            <AssetCard key={asset._id} asset={asset} />
           ))}
         </div>
       )}
     </div>
+  );
+}
+
+function AssetCard({ asset }: { asset: Doc<"assets"> }) {
+  const { dek } = useEncryption();
+  const decrypted = useDecrypted(asset, dek, async (a, dek) => ({
+    name: await decryptText(a.name, dek),
+    description: await decryptOptionalText(a.description, dek),
+    marketValue: await decryptOptionalNumber(a.marketValue, dek),
+    tags: await decryptOptionalArray(a.tags, dek),
+  }));
+
+  const name = decrypted?.name ?? "…";
+
+  return (
+    <Link
+      to={`/assets/${asset._id}`}
+      className="group relative block rounded-xl border bg-card p-4 hover:shadow-sm transition-shadow no-underline text-inherit focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <p className="font-medium leading-tight truncate">{name}</p>
+      {decrypted?.description && (
+        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+          {decrypted.description}
+        </p>
+      )}
+      {decrypted?.marketValue !== undefined && (
+        <p className="text-sm font-semibold mt-1">
+          {formatCents(decrypted.marketValue)}
+        </p>
+      )}
+      {decrypted?.tags && decrypted.tags.length > 0 && (
+        <div className="flex flex-wrap gap-1 mt-1.5">
+          {decrypted.tags.slice(0, 3).map((tag: string) => (
+            <Badge key={tag} variant="outline" className="text-xs px-1.5 py-0">
+              {tag}
+            </Badge>
+          ))}
+        </div>
+      )}
+    </Link>
   );
 }

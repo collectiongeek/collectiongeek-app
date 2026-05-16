@@ -84,6 +84,100 @@ func (h *UsersHandler) UpsertUser(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(result)
 }
 
+// POST /api/v1/users/me/encryption — finalize zero-knowledge encryption
+// setup for the user. Body: { wrappedDek: string, keySalt: string } — both
+// base64-encoded. Refuses to overwrite if encryption has already been set
+// up (which would orphan all previously-encrypted data).
+func (h *UsersHandler) SetEncryptionKey(w http.ResponseWriter, r *http.Request) {
+	workosUserID := middleware.WorkOSUserID(r)
+	if workosUserID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var body struct {
+		WrappedDek string `json:"wrappedDek"`
+		KeySalt    string `json:"keySalt"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	if body.WrappedDek == "" || body.KeySalt == "" {
+		http.Error(w, "wrappedDek and keySalt are required", http.StatusBadRequest)
+		return
+	}
+	// Wrapped DEK and salt are small fixed-size cryptographic blobs (well
+	// under 200 bytes base64 in practice). Cap the accepted payload to a
+	// generous 1KB so an unbounded string can't be used to chew memory.
+	if len(body.WrappedDek) > 1024 || len(body.KeySalt) > 1024 {
+		http.Error(w, "wrappedDek or keySalt exceeds size limit", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.convex.Mutation(r.Context(), "users:setEncryptionKey", map[string]any{
+		"workosUserId": workosUserID,
+		"wrappedDek":   body.WrappedDek,
+		"keySalt":      body.KeySalt,
+	}, nil); err != nil {
+		if strings.Contains(err.Error(), "already set") {
+			http.Error(w, "Encryption already configured", http.StatusConflict)
+			return
+		}
+		http.Error(w, "Failed to set encryption key", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// POST /api/v1/users/me/encryption/rotate — replace wrappedDek + keySalt
+// during recovery-code rotation. The client has already verified the OLD
+// recovery code locally by unwrapping + re-wrapping the same DEK; the server
+// just accepts the swap. Refuses if no encryption has been set up yet.
+func (h *UsersHandler) RotateEncryptionKey(w http.ResponseWriter, r *http.Request) {
+	workosUserID := middleware.WorkOSUserID(r)
+	if workosUserID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var body struct {
+		WrappedDek string `json:"wrappedDek"`
+		KeySalt    string `json:"keySalt"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	if body.WrappedDek == "" || body.KeySalt == "" {
+		http.Error(w, "wrappedDek and keySalt are required", http.StatusBadRequest)
+		return
+	}
+	// Wrapped DEK and salt are small fixed-size cryptographic blobs (well
+	// under 200 bytes base64 in practice). Cap the accepted payload to a
+	// generous 1KB so an unbounded string can't be used to chew memory.
+	if len(body.WrappedDek) > 1024 || len(body.KeySalt) > 1024 {
+		http.Error(w, "wrappedDek or keySalt exceeds size limit", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.convex.Mutation(r.Context(), "users:rotateEncryptionKey", map[string]any{
+		"workosUserId": workosUserID,
+		"wrappedDek":   body.WrappedDek,
+		"keySalt":      body.KeySalt,
+	}, nil); err != nil {
+		if strings.Contains(err.Error(), "No encryption key to rotate") {
+			http.Error(w, "Encryption is not set up yet", http.StatusConflict)
+			return
+		}
+		http.Error(w, "Failed to rotate encryption key", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // PUT /api/v1/users/me/theme — persist the user's UI theme + mode.
 // Body: { theme?: string, themeMode?: "light" | "dark" | "system" }
 func (h *UsersHandler) UpdateTheme(w http.ResponseWriter, r *http.Request) {
