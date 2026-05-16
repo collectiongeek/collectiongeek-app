@@ -21,11 +21,15 @@ const root = resolve(__dirname, "..");
 const htmlPath = resolve(root, "index.html");
 const confPath = resolve(root, "nginx.conf");
 
+// Fail closed: if either input is missing, the guard can't do its job and
+// the build shouldn't proceed under the assumption that the CSP is fine. A
+// renamed file or a misconfigured checkout should fail loudly, not silently
+// disable the check.
 if (!existsSync(htmlPath) || !existsSync(confPath)) {
   console.error(
-    `[csp-hash] expected ${htmlPath} and ${confPath} to exist; skipping`
+    `[csp-hash] cannot verify CSP hash — expected both ${htmlPath} and ${confPath} to exist.`
   );
-  process.exit(0);
+  process.exit(1);
 }
 
 const html = readFileSync(htmlPath, "utf8");
