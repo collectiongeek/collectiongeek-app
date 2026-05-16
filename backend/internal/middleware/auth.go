@@ -81,6 +81,13 @@ func (m *JWKSMiddleware) extractAndValidate(r *http.Request) (jwt.Token, error) 
 		jwt.WithKeySet(keySet),
 		jwt.WithValidate(true),
 		jwt.WithIssuer(issuer),
+		// Accept up to 60s of clock skew between this server and WorkOS.
+		// Without this, a backend clock running slightly behind WorkOS will
+		// reject freshly-minted JWTs with `"iat" not satisfied`, which is
+		// especially common inside dev containers whose host time drifts.
+		// 60s is generous enough for realistic drift, tight enough not to
+		// meaningfully extend a token's effective lifetime.
+		jwt.WithAcceptableSkew(60*time.Second),
 	)
 }
 
