@@ -23,7 +23,7 @@
     "@workos-inc/authkit-react": "^0.16.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "convex": "^1.38.0",
+    "convex": "^1.39.1",
     "lucide-react": "^0.511.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
@@ -49,5 +49,8 @@
     "vite": "^8.0.10",
     "vite-plugin-sri4": "^4.0.0",
     "vitest": "^3.2.0"
+  },
+  "overrides": {
+    "ws": "^8.20.1"
   }
 }
