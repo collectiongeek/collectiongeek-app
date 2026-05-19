@@ -69,7 +69,7 @@ func (c *Client) Mutation(ctx context.Context, path string, args any, result any
 		log.Printf("[convex] request error for %s: %v", path, err)
 		return fmt.Errorf("calling convex: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	raw, err := io.ReadAll(resp.Body)
 	if err != nil {
