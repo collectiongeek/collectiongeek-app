@@ -1,0 +1,24 @@
+# Controls how `gh release create --generate-notes` groups PRs into sections.
+# Each merged PR is placed under the first matching category by its labels;
+# `labels: ["*"]` catches anything that didn't match earlier.
+#
+# Apply one of these labels to each PR before merging. Use `skip-changelog`
+# on internal/no-op PRs (lockfile bumps, CI-only tweaks) to keep them out of
+# customer-facing release notes entirely.
+changelog:
+  exclude:
+    labels:
+      - skip-changelog
+  categories:
+    - title: ✨ Features
+      labels: [enhancement]
+    - title: 🐛 Fixes
+      labels: [bug]
+    - title: 🔒 Security
+      labels: [security]
+    - title: 🧹 Maintenance
+      labels: [chore]
+    - title: 📝 Docs
+      labels: [documentation]
+    - title: Other
+      labels: ["*"]
