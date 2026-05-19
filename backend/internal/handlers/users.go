@@ -307,8 +307,8 @@ func (h *UsersHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer func() {
-		io.Copy(io.Discard, resp.Body) //nolint:errcheck
-		resp.Body.Close()
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
 	}()
 	if resp.StatusCode >= 400 {
 		http.Error(w, fmt.Sprintf("WorkOS returned %d", resp.StatusCode), http.StatusInternalServerError)
