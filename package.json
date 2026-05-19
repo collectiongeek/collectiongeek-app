@@ -6,6 +6,9 @@
     "deploy:convex": "convex deploy"
   },
   "dependencies": {
-    "convex": "^1.38.0"
+    "convex": "^1.39.1"
+  },
+  "overrides": {
+    "ws": "^8.20.1"
   }
 }
