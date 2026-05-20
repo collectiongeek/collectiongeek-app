@@ -36,9 +36,12 @@ RUN chmod +x /docker-entrypoint.sh
 # CSP + security-header config and SPA fallback live in nginx.conf so the
 # Content-Security-Policy string isn't fighting printf escaping. See the
 # header comment in that file for what each directive protects.
-COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
+# Copied as a .template — docker-entrypoint.sh renders it via envsubst at
+# container start so connect-src can be templated from $API_BASE_URL.
+COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf.template
 
 EXPOSE 80
 
-# Writes /config.js from env vars at startup, then starts Nginx
+# Renders nginx.conf from the template, writes /config.js from env vars,
+# then starts Nginx.
 CMD ["/docker-entrypoint.sh"]
