@@ -145,7 +145,7 @@ function AssetTypeCard({
               <Button
                 variant="ghost"
                 size="icon"
-                className="size-7 opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                className="opacity-100 md:size-7 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
                 aria-label={`Actions for ${name}`}
               >
                 <MoreHorizontal className="size-4" />
