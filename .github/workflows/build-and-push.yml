@@ -97,7 +97,7 @@ jobs:
           # human-readable image tag instead of a SHA.
           tags: |
             type=sha,prefix=
-            type=raw,value=latest
+            type=raw,value=latest,enable={{is_default_branch}}
             type=ref,event=tag
 
       - name: Build image
@@ -116,7 +116,7 @@ jobs:
       - name: Run Trivy vulnerability scan
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ${{ env.BACKEND_IMAGE }}:latest
+          image-ref: ${{ env.BACKEND_IMAGE }}:${{ steps.short-sha.outputs.sha }}
           format: "table"
           exit-code: "1"
           severity: "CRITICAL,HIGH"
@@ -179,7 +179,7 @@ jobs:
           images: ${{ env.FRONTEND_IMAGE }}
           tags: |
             type=sha,prefix=
-            type=raw,value=latest
+            type=raw,value=latest,enable={{is_default_branch}}
             type=ref,event=tag
 
       - name: Build image
@@ -199,7 +199,7 @@ jobs:
       - name: Run Trivy vulnerability scan
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ${{ env.FRONTEND_IMAGE }}:latest
+          image-ref: ${{ env.FRONTEND_IMAGE }}:${{ steps.short-sha.outputs.sha }}
           format: "table"
           exit-code: "1"
           severity: "CRITICAL,HIGH"
