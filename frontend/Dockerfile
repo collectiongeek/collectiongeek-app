@@ -14,6 +14,14 @@ COPY frontend/ ./frontend/
 # query/mutation return types. They are not bundled into the frontend output.
 COPY convex/ ./convex/
 
+# Version metadata, supplied by CI (see .github/workflows/build-and-push.yml).
+# Vite's `define:` substitution (vite.config.ts) reads these as env vars and
+# inlines them into the bundle as string literals.
+ARG VERSION=dev
+ARG COMMIT=unknown
+ARG BUILT_AT=unknown
+ENV APP_VERSION=${VERSION} APP_COMMIT=${COMMIT} APP_BUILT_AT=${BUILT_AT}
+
 RUN cd frontend && npm run build
 
 # -- Runtime stage --

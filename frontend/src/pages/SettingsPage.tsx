@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@workos-inc/authkit-react";
 import { useQuery } from "convex/react";
 import { api } from "@convex-gen/api";
-import { deleteAccount } from "@/lib/api";
+import { deleteAccount, getBackendVersion } from "@/lib/api";
+import { frontendVersion, type VersionInfo } from "@/lib/version";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -21,12 +22,34 @@ import { Eye, Lock, ShieldCheck } from "lucide-react";
 import { RotateRecoveryCodeDialog } from "@/components/auth/RotateRecoveryCodeDialog";
 import { useEncryption } from "@/lib/encryption-provider";
 
+// Render the ISO timestamp in the user's locale, but fall back gracefully if
+// the build pipeline didn't supply one (local `npm run dev`, or a string the
+// browser can't parse).
+function formatBuiltAt(iso: string): string {
+  if (!iso || iso === "unknown") return iso || "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString();
+}
+
 export function SettingsPage() {
   const { user, getAccessToken, signOut } = useAuth();
   const { clearLocalKey } = useEncryption();
   const convexUser = useQuery(api.users.getUser);
   const [deleting, setDeleting] = useState(false);
   const [rotateOpen, setRotateOpen] = useState(false);
+  const [backendVersion, setBackendVersion] = useState<VersionInfo | null>(null);
+
+  // Fetch the backend's build metadata once for the About section. Best-effort:
+  // a failure here (offline, backend redeploying) leaves the row showing a
+  // placeholder rather than blocking the page.
+  useEffect(() => {
+    let cancelled = false;
+    getBackendVersion()
+      .then((v) => { if (!cancelled) setBackendVersion(v); })
+      .catch(() => { /* swallow — the UI handles the null state */ });
+    return () => { cancelled = true; };
+  }, []);
 
   async function handleDeleteAccount() {
     setDeleting(true);
@@ -203,6 +226,31 @@ export function SettingsPage() {
         open={rotateOpen}
         onOpenChange={setRotateOpen}
       />
+
+      <Separator />
+
+      {/* About — build metadata for support. Frontend version is baked in at
+          build time (see vite.config.ts); backend version is fetched from
+          /api/v1/version since the two services deploy independently. */}
+      <section className="space-y-4">
+        <h2 className="text-base font-semibold">About</h2>
+        <div className="grid gap-1 text-sm">
+          <div className="flex items-center justify-between py-2">
+            <span className="text-muted-foreground">UI</span>
+            <span className="font-mono text-xs">
+              {frontendVersion.version} · {frontendVersion.commit} · {formatBuiltAt(frontendVersion.builtAt)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between py-2">
+            <span className="text-muted-foreground">API</span>
+            <span className="font-mono text-xs">
+              {backendVersion
+                ? `${backendVersion.version} · ${backendVersion.commit} · ${formatBuiltAt(backendVersion.builtAt)}`
+                : "—"}
+            </span>
+          </div>
+        </div>
+      </section>
 
       <Separator />
 

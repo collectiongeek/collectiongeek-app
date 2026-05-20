@@ -1,4 +1,5 @@
 import { config } from "@/lib/config";
+import type { VersionInfo } from "@/lib/version";
 
 const BASE_URL = config.apiBaseUrl;
 
@@ -25,6 +26,14 @@ async function request<T>(
     return undefined as T;
   }
   return res.json() as Promise<T>;
+}
+
+// --- Version (public, no auth) ---
+
+export async function getBackendVersion(): Promise<VersionInfo> {
+  const res = await fetch(`${BASE_URL}/api/v1/version`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json() as Promise<VersionInfo>;
 }
 
 // --- Users ---

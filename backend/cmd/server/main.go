@@ -15,6 +15,7 @@ import (
 	convexclient "github.com/collectiongeek/collectiongeek-app/backend/internal/convex"
 	"github.com/collectiongeek/collectiongeek-app/backend/internal/handlers"
 	"github.com/collectiongeek/collectiongeek-app/backend/internal/middleware"
+	"github.com/collectiongeek/collectiongeek-app/backend/internal/version"
 )
 
 func main() {
@@ -78,6 +79,15 @@ func main() {
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	})
+
+	// Version — unauthenticated so support / probes / a hidden "About" panel
+	// can read it without a token. The values are baked in at build time
+	// (see internal/version and the Dockerfile ldflags), so there's no
+	// per-request cost and nothing sensitive to leak.
+	r.Get("/api/v1/version", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(version.Current())
 	})
 
 	// API routes — all require a valid WorkOS JWT.
