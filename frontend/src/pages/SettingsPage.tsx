@@ -41,13 +41,15 @@ export function SettingsPage() {
   const [backendVersion, setBackendVersion] = useState<VersionInfo | null>(null);
 
   // Fetch the backend's build metadata once for the About section. Best-effort:
-  // a failure here (offline, backend redeploying) leaves the row showing a
-  // placeholder rather than blocking the page.
+  // a failure here (offline, backend redeploying, CSP/CORS blocking the fetch)
+  // leaves the row showing a placeholder rather than blocking the page. The
+  // warn keeps a breadcrumb in the console so the next browser-only fetch
+  // failure is self-diagnosable.
   useEffect(() => {
     let cancelled = false;
     getBackendVersion()
       .then((v) => { if (!cancelled) setBackendVersion(v); })
-      .catch(() => { /* swallow — the UI handles the null state */ });
+      .catch((err) => { console.warn("Failed to fetch backend version:", err); });
     return () => { cancelled = true; };
   }, []);
 
