@@ -135,7 +135,7 @@ function CollectionTypeCard({
               <Button
                 variant="ghost"
                 size="icon"
-                className="size-7 opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                className="opacity-100 pointer-fine:size-7 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 pointer-fine:focus-visible:opacity-100"
                 aria-label={`Actions for ${name}`}
               >
                 <MoreHorizontal className="size-4" />

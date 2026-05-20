@@ -234,9 +234,9 @@ export function DashboardPage() {
       </div>
 
       <div className="space-y-4">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-2xl font-bold">My Collections</h1>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-4 sm:justify-end">
             <label className="flex items-center gap-2 text-sm text-muted-foreground select-none">
               Show total values
               <button
@@ -330,7 +330,7 @@ export function DashboardPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="size-7 opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                            className="opacity-100 pointer-fine:size-7 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 pointer-fine:focus-visible:opacity-100"
                             aria-label={`Actions for ${col.name}`}
                           >
                             <MoreHorizontal className="size-4" />
