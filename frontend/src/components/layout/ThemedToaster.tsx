@@ -1,49 +1,27 @@
-import { useEffect } from "react";
 import { Toaster } from "sonner";
 import { useTheme } from "@/lib/theme-provider";
 
 /**
- * Wraps Sonner's Toaster with two behaviors that aren't built in:
+ * Sonner toaster, configured for mobile-first dismissal and placement.
  *
- * 1. The current theme mode is threaded through so the panel inherits
- *    light/dark from the app rather than defaulting to its own palette.
- *    "system" is resolved by Sonner itself.
- *
- * 2. A delegated document-level click handler synthesizes the missing
- *    "click anywhere on the toast to dismiss" behavior by programmatically
- *    triggering the (visually-hidden) close button. Clicks on the toast's
- *    own controls (close button, action button, cancel button) are passed
- *    through so their native behavior still fires.
+ * `bottom-center` keeps toasts out of the thumb's working area on a phone
+ * and out of the way of whatever the user was just editing.
+ * `duration={2000}` auto-dismisses fast so a toast can never block work for
+ * long. Users dismiss earlier via the visible X (closeButton) or by swiping
+ * the toast away (Sonner's native gesture). The previous "click anywhere on
+ * the toast to dismiss" handler synthesized clicks on a hidden close button
+ * — unreliable on touch because Sonner's swipe gesture preventDefaults
+ * touchstart, so the click was never synthesized.
  */
 export function ThemedToaster() {
   const { mode } = useTheme();
 
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (!target) return;
-      const toast = target.closest("[data-sonner-toast]");
-      if (!toast) return;
-      if (
-        target.closest("[data-close-button], [data-button], [data-cancel]")
-      ) {
-        return;
-      }
-      const closeBtn = toast.querySelector<HTMLButtonElement>(
-        "[data-close-button]"
-      );
-      closeBtn?.click();
-    };
-    document.addEventListener("click", handler);
-    return () => document.removeEventListener("click", handler);
-  }, []);
-
   return (
     <Toaster
-      position="top-right"
+      position="bottom-center"
       theme={mode}
       closeButton
-      toastOptions={{ className: "cursor-pointer" }}
+      duration={2000}
     />
   );
 }
