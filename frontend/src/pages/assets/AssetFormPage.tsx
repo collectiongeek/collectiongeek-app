@@ -10,7 +10,7 @@ import {
   type DescriptorValueInput,
 } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input, nativeSelectClasses } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -408,7 +408,7 @@ function AssetForm({
                 id="assetType"
                 value={assetTypeId}
                 onChange={(e) => setAssetTypeId(e.target.value)}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                className={nativeSelectClasses}
               >
                 <option value="">Untyped</option>
                 {assetTypeOptions.map((at) => (
@@ -424,7 +424,7 @@ function AssetForm({
                 if you don't see the one you need.
               </p>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="dateAcquired">Date acquired</Label>
                 <Input
@@ -451,7 +451,7 @@ function AssetForm({
           <CardHeader>
             <CardTitle className="text-base">Value</CardTitle>
           </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-4">
+          <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="purchasedValue">Purchased ($)</Label>
               <Input
@@ -579,7 +579,7 @@ function DescriptorField({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           required={descriptor.required}
-          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className={nativeSelectClasses}
         >
           <option value="">—</option>
           <option value="true">Yes</option>
@@ -598,7 +598,7 @@ function DescriptorField({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           required={descriptor.required}
-          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className={nativeSelectClasses}
         >
           <option value="">—</option>
           {(descriptor.options ?? []).map((opt) => (

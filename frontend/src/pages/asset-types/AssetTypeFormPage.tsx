@@ -293,7 +293,7 @@ function AssetTypeForm({ mode, assetTypeId, initial }: FormProps) {
                           dataType: e.target.value as DescriptorDataType,
                         })
                       }
-                      className="h-9 rounded-md border border-input bg-transparent px-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      className="h-11 rounded-md border border-input bg-transparent px-3 text-base focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring md:h-9 md:px-2 md:text-sm"
                     >
                       {DATA_TYPES.map((t) => (
                         <option key={t.value} value={t.value}>
@@ -306,7 +306,7 @@ function AssetTypeForm({ mode, assetTypeId, initial }: FormProps) {
                       variant="ghost"
                       size="icon"
                       onClick={() => removeDescriptor(i)}
-                      className="size-9 shrink-0"
+                      className="shrink-0 md:size-9"
                       aria-label="Remove descriptor"
                     >
                       <X className="size-4" />
