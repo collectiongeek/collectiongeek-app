@@ -122,15 +122,15 @@ export function SettingsPage() {
       <section className="space-y-4">
         <h2 className="text-base font-semibold">Profile</h2>
         <div className="grid gap-1 text-sm">
-          <div className="flex items-center justify-between py-2">
+          <div className="flex flex-col py-2 sm:flex-row sm:items-center sm:justify-between">
             <span className="text-muted-foreground">Username</span>
             <span>{convexUser?.username || "—"}</span>
           </div>
-          <div className="flex items-center justify-between py-2">
+          <div className="flex flex-col py-2 sm:flex-row sm:items-center sm:justify-between">
             <span className="text-muted-foreground">Email</span>
             <span>{user?.email}</span>
           </div>
-          <div className="flex items-center justify-between py-2">
+          <div className="flex flex-col py-2 sm:flex-row sm:items-center sm:justify-between">
             <span className="text-muted-foreground">Member since</span>
             <span>
               {convexUser
@@ -151,7 +151,7 @@ export function SettingsPage() {
       <section className="space-y-4">
         <h2 className="text-base font-semibold">Encryption</h2>
         <div className="rounded-lg border p-4">
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between sm:gap-4">
             <div className="flex items-start gap-3">
               <ShieldCheck className="size-5 mt-0.5 text-muted-foreground shrink-0" />
               <div>
@@ -167,7 +167,7 @@ export function SettingsPage() {
               variant="outline"
               size="sm"
               onClick={() => setRotateOpen(true)}
-              className="shrink-0"
+              className="shrink-0 self-end sm:self-auto"
             >
               Rotate
             </Button>
@@ -237,13 +237,13 @@ export function SettingsPage() {
       <section className="space-y-4">
         <h2 className="text-base font-semibold">About</h2>
         <div className="grid gap-1 text-sm">
-          <div className="flex items-center justify-between py-2">
+          <div className="flex flex-col py-2 sm:flex-row sm:items-center sm:justify-between">
             <span className="text-muted-foreground">UI</span>
             <span className="font-mono text-xs">
               {frontendVersion.version} · {frontendVersion.commit} · {formatBuiltAt(frontendVersion.builtAt)}
             </span>
           </div>
-          <div className="flex items-center justify-between py-2">
+          <div className="flex flex-col py-2 sm:flex-row sm:items-center sm:justify-between">
             <span className="text-muted-foreground">API</span>
             <span className="font-mono text-xs">
               {backendVersion
@@ -260,7 +260,7 @@ export function SettingsPage() {
       <section className="space-y-4">
         <h2 className="text-base font-semibold">Danger zone</h2>
         <div className="rounded-lg border p-4">
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between sm:gap-4">
             <div>
               <p className="font-medium text-sm">Delete account</p>
               <p className="text-sm text-muted-foreground mt-0.5">
@@ -270,7 +270,12 @@ export function SettingsPage() {
             </div>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="outline" size="sm" disabled={deleting}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={deleting}
+                  className="self-end sm:self-auto"
+                >
                   Delete account
                 </Button>
               </AlertDialogTrigger>

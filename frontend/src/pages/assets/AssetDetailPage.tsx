@@ -218,13 +218,13 @@ function AssetDetail({ id }: { id: string }) {
         {decrypted.dateAcquired && (
           <div>
             <dt className="text-muted-foreground">Date acquired</dt>
-            <dd className="font-medium mt-0.5">{formatDate(decrypted.dateAcquired)}</dd>
+            <dd className="font-medium mt-0.5 text-base">{formatDate(decrypted.dateAcquired)}</dd>
           </div>
         )}
         {decrypted.purchasedValue !== undefined && (
           <div>
             <dt className="text-muted-foreground">Purchased for</dt>
-            <dd className="font-medium mt-0.5">{formatCents(decrypted.purchasedValue)}</dd>
+            <dd className="font-medium mt-0.5 text-base">{formatCents(decrypted.purchasedValue)}</dd>
           </div>
         )}
         {decrypted.marketValue !== undefined && (
@@ -254,7 +254,7 @@ function AssetDetail({ id }: { id: string }) {
                 return (
                   <div key={v._id}>
                     <dt className="text-muted-foreground">{d.name}</dt>
-                    <dd className="font-medium mt-0.5">
+                    <dd className="font-medium mt-0.5 text-base">
                       {formatDescriptorValue(v.value, d.dataType)}
                     </dd>
                   </div>

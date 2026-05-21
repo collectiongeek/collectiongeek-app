@@ -103,7 +103,7 @@ export function Layout() {
                     aria-label="Navigation menu"
                     className="lg:hidden"
                   >
-                    <Menu className="size-4" />
+                    <Menu className="size-5 md:size-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
@@ -121,7 +121,7 @@ export function Layout() {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" aria-label="Account menu">
-                      <User className="size-4" />
+                      <User className="size-5 md:size-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">

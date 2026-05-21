@@ -89,7 +89,7 @@ export function ThemePicker() {
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" aria-label="Theme">
-          <Palette className="size-4" />
+          <Palette className="size-5 md:size-4" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-72">
