@@ -44,7 +44,7 @@ export function LandingPage() {
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
           <div className="flex items-center gap-2 font-semibold">
             <BookOpen className="size-5" />
-            CollectionGeek
+            <span className="hidden sm:inline">CollectionGeek</span>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" onClick={() => signIn()}>
