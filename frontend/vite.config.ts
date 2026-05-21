@@ -41,6 +41,10 @@ export default defineConfig({
     sri({ ignoreMissingAsset: true }),
   ],
   server: {
+    // Bind to all interfaces so the dev server is reachable through
+    // devcontainer / Codespaces port forwarding. Without this Vite binds
+    // to [::1] only and a forwarded port on the host can't connect.
+    host: true,
     port: 3000,
     strictPort: true,
     proxy: {
