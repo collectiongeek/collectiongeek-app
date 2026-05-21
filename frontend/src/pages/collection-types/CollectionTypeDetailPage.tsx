@@ -61,7 +61,7 @@ function CollectionTypeDetail({ id }: { id: string }) {
             <ChevronLeft className="size-4" />Collection types
           </Link>
         </Button>
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between sm:gap-4">
           <h1 className="text-2xl font-bold">{decrypted.name}</h1>
           <Button variant="outline" size="sm" asChild>
             <Link to={`/collection-types/${id}/edit`}>

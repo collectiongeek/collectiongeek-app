@@ -160,7 +160,7 @@ function AssetDetail({ id }: { id: string }) {
             {backLabel}
           </Link>
         </Button>
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between sm:gap-4">
           <div>
             <h1 className="text-2xl font-bold">{decrypted.name}</h1>
             {asset.assetType && decrypted.assetTypeName && (
@@ -214,7 +214,7 @@ function AssetDetail({ id }: { id: string }) {
 
       <Separator />
 
-      <dl className="grid grid-cols-2 gap-x-8 gap-y-4 text-sm">
+      <dl className="grid grid-cols-1 gap-x-8 gap-y-4 text-sm sm:grid-cols-2">
         {decrypted.dateAcquired && (
           <div>
             <dt className="text-muted-foreground">Date acquired</dt>
@@ -242,7 +242,7 @@ function AssetDetail({ id }: { id: string }) {
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
               {decrypted.assetTypeName ?? "Details"}
             </h2>
-            <dl className="grid grid-cols-2 gap-x-8 gap-y-4 text-sm">
+            <dl className="grid grid-cols-1 gap-x-8 gap-y-4 text-sm sm:grid-cols-2">
               {decrypted.descriptorValues.map((v) => {
                 const d = descriptorsById.get(v.descriptorId);
                 if (!d) {
