@@ -53,10 +53,10 @@
 
   "postCreateCommand": "bash .devcontainer/post-create.sh",
 
-  "forwardPorts": [8080, 5173, 3000],
+  "forwardPorts": [8080, 8081, 3000],
   "portsAttributes": {
-    "8080": { "label": "Backend API" },
-    "5173": { "label": "Frontend (Vite dev)" },
-    "3000": { "label": "Frontend (Docker/Nginx)" }
+    "8080": { "label": "Backend API (docker compose)" },
+    "8081": { "label": "Backend API (local dev)" },
+    "3000": { "label": "Frontend (Vite dev / Docker / Nginx)" }
   }
 }
