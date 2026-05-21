@@ -135,7 +135,7 @@ function CollectionDetail({ id }: { id: string }) {
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-2">
           <Link to="/dashboard"><ChevronLeft className="size-4" />Dashboard</Link>
         </Button>
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between sm:gap-4">
           <div>
             <h1 className="text-2xl font-bold">{decryptedCollection.name}</h1>
             {decryptedCollection.description && (
