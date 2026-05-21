@@ -6,7 +6,7 @@ import { api } from "@convex-gen/api";
 import type { Id } from "@convex-gen/dataModel";
 import { updateCollection } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input, nativeSelectClasses } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -145,7 +145,7 @@ function EditCollectionForm({ id, initial }: { id: string; initial: InitialForm 
                 id="type"
                 value={form.collectionTypeId}
                 onChange={(e) => set("collectionTypeId", e.target.value)}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                className={nativeSelectClasses}
               >
                 <option value="">Untyped</option>
                 {typeOptions.map((ct) => (

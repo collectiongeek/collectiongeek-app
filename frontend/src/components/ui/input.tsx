@@ -16,4 +16,12 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
   );
 }
 
+// Reusable class string for native <select> elements that should visually match
+// Input. The full Radix-based <Select> from select.tsx is preferable for new
+// code, but several call sites use native <select> for simple option lists —
+// keeping their sizing in one place avoids drift the next time the touch
+// targets change.
+export const nativeSelectClasses =
+  "flex h-11 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring md:h-9 md:py-1 md:text-sm";
+
 export { Input };
