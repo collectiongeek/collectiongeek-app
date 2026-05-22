@@ -113,7 +113,7 @@ function TemplateDetail({ slug }: { slug: string }) {
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-2">
           <Link to="/templates">
-            <ChevronLeft className="size-4" />Back to library
+            <ChevronLeft className="size-4" />Template library
           </Link>
         </Button>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

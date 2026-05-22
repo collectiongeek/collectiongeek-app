@@ -105,16 +105,15 @@ function AssetDetail({ id }: { id: string }) {
   );
 
   async function handleDelete() {
-    const firstCollection = asset?.collections[0];
-    const target = firstCollection
-      ? `/collections/${firstCollection._id}`
-      : "/assets";
     try {
       const token = await getAccessToken();
       if (!token) throw new Error("Not authenticated");
       await deleteAsset(token, id);
       toast.success("Asset deleted");
-      navigate(target);
+      // Always land back on /assets — picking one of N collections the
+      // asset belonged to would be arbitrary and contradicts the "Back to
+      // Assets" header link convention.
+      navigate("/assets");
     } catch (err) {
       console.error("Asset delete failed:", err);
       toast.error("Failed to delete asset");
@@ -143,22 +142,14 @@ function AssetDetail({ id }: { id: string }) {
 
   if (!decrypted) return null;
 
-  const backHref = asset.collections[0]
-    ? `/collections/${asset.collections[0]._id}`
-    : "/assets";
-  const backLabel = asset.collections[0]
-    ? "Back to collection"
-    : "All assets";
-
   const descriptorsById = new Map(decrypted.descriptors.map((d) => [d._id, d]));
 
   return (
     <div className="max-w-2xl space-y-6">
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-2">
-          <Link to={backHref}>
-            <ChevronLeft className="size-4" />
-            {backLabel}
+          <Link to="/assets">
+            <ChevronLeft className="size-4" />Assets
           </Link>
         </Button>
         <div className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between sm:gap-4">
