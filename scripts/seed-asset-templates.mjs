@@ -29,7 +29,13 @@ const SEED_DIR = join(__dirname, "..", "convex", "seed");
 // Node 20+ baseline. Stays tiny: KEY=value lines only, strips matching
 // quotes, never overrides an already-set process.env value (so explicit
 // shell exports still win), silently no-ops if the file is missing.
+//
+// We record which keys we loaded so main() can print the source per env var
+// — that's how you catch a shell-quoting mistake (where you THOUGHT you
+// passed `FOO=...` inline but a `|` in the value broke the assignment and
+// .env.local filled in unwanted defaults).
 const ENV_LOCAL = join(__dirname, "..", ".env.local");
+const ENV_FROM_FILE = new Set();
 if (existsSync(ENV_LOCAL)) {
   for (const line of readFileSync(ENV_LOCAL, "utf8").split("\n")) {
     const m = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*?)\s*$/);
@@ -42,8 +48,12 @@ if (existsSync(ENV_LOCAL)) {
       v = v.slice(1, -1);
     }
     process.env[m[1]] = v;
+    ENV_FROM_FILE.add(m[1]);
   }
 }
+
+const envSource = (key) =>
+  ENV_FROM_FILE.has(key) ? ".env.local" : "inline";
 
 const ALLOWED_DATA_TYPES = new Set([
   "text",
@@ -167,10 +177,34 @@ async function main() {
 
   if (checkOnly) return;
 
-  const url = process.env.CONVEX_URL || process.env.CONVEX_DEPLOY_URL;
+  const rawUrl = process.env.CONVEX_URL || process.env.CONVEX_DEPLOY_URL;
   const deployKey = process.env.CONVEX_DEPLOY_KEY;
-  if (!url) throw new Error("CONVEX_URL (or CONVEX_DEPLOY_URL) is required");
+  if (!rawUrl) throw new Error("CONVEX_URL (or CONVEX_DEPLOY_URL) is required");
   if (!deployKey) throw new Error("CONVEX_DEPLOY_KEY is required");
+
+  // Strip any trailing slash. ConvexHttpClient appends `/api/mutation`
+  // verbatim, so `https://host/` becomes `https://host//api/mutation` —
+  // Convex / Cloudflare responds with status:"error" and an EMPTY
+  // errorMessage, which surfaces as a bare `Error` with no detail.
+  // Diagnosing that without this guard cost us hours; never again.
+  const url = rawUrl.replace(/\/+$/, "");
+  if (url !== rawUrl) {
+    console.warn(
+      `Note: stripped trailing slash from CONVEX_URL (was ${rawUrl}).`
+    );
+  }
+
+  // Print the resolved target so a misconfigured env is obvious before the
+  // mutation fires. Deploy key prefix only — never the full secret. Source
+  // (.env.local vs inline) surfaces shell-quoting accidents — e.g. a `|` in
+  // an unquoted CONVEX_DEPLOY_KEY silently sends node with neither var set.
+  const urlSrc = envSource(
+    process.env.CONVEX_URL !== undefined ? "CONVEX_URL" : "CONVEX_DEPLOY_URL"
+  );
+  const keyPrefix = deployKey.slice(0, deployKey.indexOf(":") + 1) || "?:";
+  console.log(
+    `Targeting ${new URL(url).hostname} (from ${urlSrc}) with ${keyPrefix}... key (from ${envSource("CONVEX_DEPLOY_KEY")})`
+  );
 
   const client = new ConvexHttpClient(url);
   client.setAdminAuth(deployKey);
@@ -183,6 +217,28 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error(err);
+  // Convex SDK errors sometimes throw with .toString() === "Error" — the
+  // useful payload lives in .message / .data / .name. Surface all of them
+  // so a seed failure is diagnosable from the terminal alone.
+  console.error("Seed failed.");
+  if (err?.name) console.error("  name:", err.name);
+  if (err?.message) console.error("  message:", err.message);
+  if (err?.data !== undefined) {
+    console.error("  data:", JSON.stringify(err.data, null, 2));
+  }
+  // Cloudflare in front of Convex returns 502 / "Bad gateway" HTML when the
+  // deploy key is invalid — presumably to make auth brute-forcing harder.
+  // Surface that as a credentials hint instead of letting it look like a
+  // transient infra outage that "just needs a retry."
+  const msg = String(err?.message ?? "");
+  if (msg.includes("Bad gateway") || msg.includes("<!DOCTYPE html>")) {
+    console.error(
+      "\nHint: a 502 from Convex usually means the deploy key is wrong " +
+      "for the targeted deployment. Verify CONVEX_DEPLOY_KEY matches the " +
+      "deployment at CONVEX_URL (dev key vs prod key, project mismatch, " +
+      "expired key). Do NOT just retry — Cloudflare may rate-limit."
+    );
+  }
+  if (err?.stack) console.error(err.stack);
   process.exit(1);
 });
