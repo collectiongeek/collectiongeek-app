@@ -303,14 +303,116 @@ an earlier version.
 
 ### Seeding production
 
-Same script, different env file:
+Same script, prod credentials supplied inline so they never sit in a file:
 
 ```bash
-node --env-file=.env.production.local scripts/seed-asset-templates.mjs
+CONVEX_URL=https://<your-prod>.convex.cloud \
+CONVEX_DEPLOY_KEY='prod:<your-prod-deploy-key>' \
+  node scripts/seed-asset-templates.mjs
 ```
+
+**Single-quote the deploy key.** Convex prod deploy keys contain a literal
+`|` separator. Unquoted, the shell parses that as a pipe operator:
+
+```text
+CONVEX_DEPLOY_KEY=prod:proj-name|TOKEN node script.mjs
+                                 ↑
+                         shell pipe operator
+```
+
+…which splits the line into a pipeline, drops your env assignments before
+the pipe, and tries to exec `TOKEN node script.mjs` as a command. The node
+process ends up with no inline env vars, the script's `.env.local` fallback
+fills in your **dev** values, and you accidentally re-seed dev instead of
+prod. The script prints `(from inline)` vs `(from .env.local)` next to each
+resolved env var on startup — if you see `.env.local` in the targeting line
+when you meant to override inline, this is what happened.
+
+Single quotes pass `|` through literally; the URL doesn't need them.
 
 There is no `seed:templates:prod` npm alias on purpose — keeping prod a
 deliberate one-liner reduces the chance of someone running it accidentally.
+
+#### If the seed call returns "502 Bad gateway"
+
+Cloudflare sits in front of Convex and returns a Bad-gateway HTML page
+instead of a clean 401 when the deploy key is invalid for the targeted
+deployment — presumably to make brute-forcing the auth surface harder.
+Don't retry on a loop; you'll just rate-limit yourself. Instead, verify:
+
+1. The `prod:` vs `dev:` prefix on `CONVEX_DEPLOY_KEY` matches the URL
+   you're hitting.
+2. The key was generated in the same Convex project as `CONVEX_URL`
+   (open `npx convex dashboard --prod` and confirm the deployment URL
+   matches).
+3. The key wasn't truncated by a shell-quoting issue when you pasted it.
+
+The seed script's error handler will print this hint automatically when it
+sees a Cloudflare HTML body in the failure.
+
+#### If the seed call fails with a bare "Error" (no message)
+
+Almost always a **trailing slash on `CONVEX_URL`**. The Convex SDK appends
+`/api/mutation` verbatim, so `https://host.convex.cloud/` becomes
+`https://host.convex.cloud//api/mutation`. The double slash gets a
+`status: "error"` response with an empty `errorMessage` — surfacing as a
+bare `Error` with no detail at the call site.
+
+The seed script defensively strips trailing slashes from `CONVEX_URL` (and
+warns when it does), so you shouldn't hit this through the script. If you
+ever hand-craft a `curl` against `/api/mutation` for prod ops, check the
+host string by eye.
+
+Other causes to check if the URL is clean:
+
+- The new schema/functions haven't been pushed to that deployment yet. Run
+  the corresponding `npx convex deploy` (see below) and confirm the
+  Functions tab in the dashboard lists `assetTypeTemplates:upsertSeedBatch`.
+
+#### Deploying the schema and functions to prod (separate from code deploy)
+
+`npx convex deploy` deploys to whatever Convex deployment the CLI is
+authenticated to — by default, your dev project. To target a different
+deployment (e.g. your separate prod project), override with the deploy key:
+
+```bash
+CONVEX_DEPLOY_KEY='prod:<your-prod-deploy-key>' npx convex deploy
+```
+
+The CLI sees the deploy key in the environment, ignores `.env.local`, and
+deploys to the deployment that key was generated for. Watch for
+`✔ Deployed Convex functions to https://<prod-host>.convex.cloud` —
+confirm the host matches what you expected.
+
+Convex CLI no longer accepts a `--prod` flag; the deploy key is the
+override mechanism.
+
+#### Using a `.env.production.local` file (optional)
+
+If you do prod ops often enough that pasting credentials inline gets old,
+you can stash them in `.env.production.local`:
+
+```text
+CONVEX_URL=https://<your-prod>.convex.cloud
+CONVEX_DEPLOY_KEY='prod:<your-prod-deploy-key>'
+```
+
+The file is already gitignored via the `.env*.local` pattern. Convex CLI
+doesn't natively read it, so source it into your shell before running
+either command:
+
+```bash
+set -a; source .env.production.local; set +a
+npx convex deploy            # → prod, via CONVEX_DEPLOY_KEY
+npm run seed:templates       # → prod, via CONVEX_URL + CONVEX_DEPLOY_KEY
+```
+
+`set -a` exports every subsequent assignment to child processes; `set +a`
+turns it off after. Scoped to the current terminal session.
+
+The tradeoff: production admin credentials at rest on your dev machine.
+Treat your home directory like the secret it holds, or stick to inline
+env vars and skip the file.
 
 ### Validating seed files without Convex
 
@@ -321,3 +423,30 @@ Two equivalent paths:
   descriptor orders, missing select options, and invalid semver.
 - `node scripts/seed-asset-templates.mjs --check` (from repo root) — no
   Convex credentials required; useful when authoring a new template.
+
+### Why a custom script instead of `npx convex run`?
+
+Convex's idiomatic pattern for invoking an internal mutation from the
+command line is `npx convex run <function> '<json>'`. We deliberately did
+not use it for seeding the template catalog:
+
+- **Validation pipeline.** The script reads every JSON file, applies the
+  same ruleset as the Go test suite (kebab slugs, unique descriptor keys,
+  contiguous order, semver, non-empty descriptions when present), and only
+  then constructs the upsert payload. `convex run` fires whatever JSON
+  you hand it without a pre-check.
+- **Payload size.** `convex run` takes args inline as a shell argument.
+  Today's payload is ~6 KB; at 100 templates it would be ~50 KB, which
+  gets awkward to quote and can hit `ARG_MAX` on common systems.
+- **Lifecycle.** The Convex docs that recommend `convex run` for seeding
+  ([stack.convex.dev/seeding-data-for-preview-deployments][seed-preview])
+  are about ephemeral preview deployments — small data, one-shot, no
+  validation needed. The template catalog is the opposite: a permanent,
+  structured, re-seeded-as-templates-evolve dataset.
+
+`convex run` is still the right tool for ad-hoc ops tasks — "backfill X
+for users who signed up before Y", "delete this stuck row" — where there's
+no validation pipeline and the payload is hand-typed. Reach for it there,
+not for catalog seeding.
+
+[seed-preview]: https://stack.convex.dev/seeding-data-for-preview-deployments
