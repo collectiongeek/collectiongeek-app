@@ -15,7 +15,7 @@
 // In local dev, source the same env vars the backend uses (CONVEX_DEPLOY_URL
 // works as a fallback for CONVEX_URL).
 
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ConvexHttpClient } from "convex/browser";
@@ -23,6 +23,27 @@ import { api } from "../convex/_generated/api.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SEED_DIR = join(__dirname, "..", "convex", "seed");
+
+// Inline mini-loader for .env.local. Node's --env-file-if-exists flag would
+// be cleaner but only landed in 22.7, which is above this repo's documented
+// Node 20+ baseline. Stays tiny: KEY=value lines only, strips matching
+// quotes, never overrides an already-set process.env value (so explicit
+// shell exports still win), silently no-ops if the file is missing.
+const ENV_LOCAL = join(__dirname, "..", ".env.local");
+if (existsSync(ENV_LOCAL)) {
+  for (const line of readFileSync(ENV_LOCAL, "utf8").split("\n")) {
+    const m = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*?)\s*$/);
+    if (!m || process.env[m[1]] !== undefined) continue;
+    let v = m[2];
+    if (
+      (v.startsWith('"') && v.endsWith('"')) ||
+      (v.startsWith("'") && v.endsWith("'"))
+    ) {
+      v = v.slice(1, -1);
+    }
+    process.env[m[1]] = v;
+  }
+}
 
 const ALLOWED_DATA_TYPES = new Set([
   "text",
@@ -33,7 +54,10 @@ const ALLOWED_DATA_TYPES = new Set([
   "select",
 ]);
 
-const KEBAB_RE = /^[a-z0-9-]+$/;
+// Strict kebab-case: lowercase alphanumeric segments separated by single
+// hyphens. Rejects leading/trailing/consecutive hyphens. Mirrors slugRE in
+// backend/internal/assettypetemplates/seed.go.
+const KEBAB_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 function loadCategories() {
   const cats = JSON.parse(
@@ -64,6 +88,14 @@ function loadTemplates(categorySlugs) {
     if (!t.slug || !KEBAB_RE.test(t.slug)) errs.push("invalid slug");
     if (slugs.has(t.slug)) errs.push(`duplicate slug ${t.slug}`);
     if (!t.name) errs.push("missing name");
+    // description is optional, but if present must be a non-empty string —
+    // an empty value passes the JSON schema but leaves the template UI
+    // with a blank caption that looks broken.
+    if (t.description !== undefined) {
+      if (typeof t.description !== "string" || t.description.trim() === "") {
+        errs.push("description must be a non-empty string when present");
+      }
+    }
     if (!categorySlugs.has(t.category))
       errs.push(`unknown category ${t.category}`);
     if (!/^\d+\.\d+\.\d+$/.test(t.version || ""))

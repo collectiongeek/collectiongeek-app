@@ -112,6 +112,33 @@ func TestValidateCatchesBadFixtures(t *testing.T) {
 			wantSubstr: "kebab-case",
 		},
 		{
+			name:       "slug with leading hyphen rejected",
+			categories: `[{"slug":"coins","name":"Coins"}]`,
+			templates: map[string]string{
+				"a.json": `{"slug":"-foo","name":"F","category":"coins","version":"1.0.0",
+					"descriptors":[{"order":1,"key":"x","name":"x","dataType":"text","required":false}]}`,
+			},
+			wantSubstr: "kebab-case",
+		},
+		{
+			name:       "slug with trailing hyphen rejected",
+			categories: `[{"slug":"coins","name":"Coins"}]`,
+			templates: map[string]string{
+				"a.json": `{"slug":"foo-","name":"F","category":"coins","version":"1.0.0",
+					"descriptors":[{"order":1,"key":"x","name":"x","dataType":"text","required":false}]}`,
+			},
+			wantSubstr: "kebab-case",
+		},
+		{
+			name:       "slug with consecutive hyphens rejected",
+			categories: `[{"slug":"coins","name":"Coins"}]`,
+			templates: map[string]string{
+				"a.json": `{"slug":"foo--bar","name":"F","category":"coins","version":"1.0.0",
+					"descriptors":[{"order":1,"key":"x","name":"x","dataType":"text","required":false}]}`,
+			},
+			wantSubstr: "kebab-case",
+		},
+		{
 			name:       "duplicate descriptor keys within template",
 			categories: `[{"slug":"coins","name":"Coins"}]`,
 			templates: map[string]string{

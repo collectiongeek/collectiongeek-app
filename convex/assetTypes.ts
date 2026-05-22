@@ -85,6 +85,15 @@ export const createAssetType = internalMutation({
       .unique();
     if (!user) throw new Error("User not found");
 
+    // Provenance is all-or-nothing. Half-set state would mislead the future
+    // upgrade-diff UI (slug without version = no comparison target;
+    // version without slug = orphaned). Reject early.
+    if ((sourceTemplateSlug == null) !== (sourceTemplateVersion == null)) {
+      throw new Error(
+        "sourceTemplateSlug and sourceTemplateVersion must both be set or both omitted"
+      );
+    }
+
     const now = Date.now();
     const assetTypeId = await ctx.db.insert("assetTypes", {
       userId: user._id,

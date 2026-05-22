@@ -25,7 +25,7 @@ See [SETUP.md](SETUP.md) for the full walkthrough: WorkOS project config, Convex
 
 **`frontend/.env.local`** (Vite dev server — copy from `frontend/.env.local.example`)
 
-```
+```text
 VITE_API_BASE_URL=http://localhost:8081
 VITE_WORKOS_CLIENT_ID=client_...      # WorkOS Staging Client ID
 VITE_CONVEX_URL=https://....convex.cloud
@@ -33,7 +33,7 @@ VITE_CONVEX_URL=https://....convex.cloud
 
 **`.env.local`** (Convex CLI, Go backend, seed script — copy from `.env.local.example`)
 
-```
+```text
 WORKOS_CLIENT_ID=client_...           # WorkOS Staging Client ID
 WORKOS_API_KEY=sk_test_...            # WorkOS Staging API key
 CONVEX_DEPLOY_KEY=dev:...             # Convex admin auth (Settings → Deploy keys)

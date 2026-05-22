@@ -5,6 +5,7 @@
 package assettypetemplates
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -43,7 +44,10 @@ type Template struct {
 }
 
 var (
-	slugRE   = regexp.MustCompile(`^[a-z0-9-]+$`)
+	// Strict kebab-case: lowercase alphanumeric segments separated by single
+	// hyphens. Rejects leading/trailing/consecutive hyphens — those weaken
+	// the "stable identity" contract and make slugs visually noisy.
+	slugRE   = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 	semverRE = regexp.MustCompile(`^\d+\.\d+\.\d+$`)
 
 	allowedDataTypes = map[string]bool{
@@ -139,6 +143,13 @@ func validateTemplateFile(path, name string, catSlugs map[string]struct{}, seenS
 
 	if t.Name == "" {
 		errs = append(errs, prefix("missing name"))
+	}
+	// description is optional, but if the key is present in the JSON it must
+	// hold a non-empty string. encoding/json gives us the zero value either
+	// way, so we re-check the raw bytes for the field name. Guards against a
+	// template shipping with a blank caption that looks broken in the UI.
+	if strings.TrimSpace(t.Description) == "" && bytes.Contains(data, []byte(`"description"`)) {
+		errs = append(errs, prefix("description must be a non-empty string when present"))
 	}
 	if _, ok := catSlugs[t.Category]; !ok {
 		errs = append(errs, prefix(fmt.Sprintf("unknown category %q", t.Category)))

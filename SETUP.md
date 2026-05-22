@@ -272,7 +272,7 @@ The seed script calls an internal Convex mutation, which requires admin auth.
 
 Append to `/workspace/.env.local`:
 
-```
+```text
 CONVEX_DEPLOY_KEY=dev:<paste-the-key>
 ```
 
@@ -291,7 +291,7 @@ npm run seed:templates
 
 Expected output:
 
-```
+```text
 Validated 17 categories and 9 templates.
 Upserted: { categoriesUpserted: 17, templatesUpserted: 9 }
 ```
@@ -316,8 +316,8 @@ deliberate one-liner reduces the chance of someone running it accidentally.
 
 Two equivalent paths:
 
-- `go test ./internal/assettypetemplates/` — runs in CI on every backend
-  build, rejects bad slugs, unknown categories, non-contiguous descriptor
-  orders, missing select options, and invalid semver.
-- `node scripts/seed-asset-templates.mjs --check` — no Convex credentials
-  required; useful when authoring a new template.
+- `cd backend && go test ./internal/assettypetemplates/` — runs in CI on
+  every backend build, rejects bad slugs, unknown categories, non-contiguous
+  descriptor orders, missing select options, and invalid semver.
+- `node scripts/seed-asset-templates.mjs --check` (from repo root) — no
+  Convex credentials required; useful when authoring a new template.
