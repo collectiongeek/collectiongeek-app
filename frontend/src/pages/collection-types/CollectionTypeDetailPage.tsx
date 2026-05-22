@@ -1,12 +1,27 @@
-import { Link, useParams } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "convex/react";
+import { useAuth } from "@workos-inc/authkit-react";
 import { api } from "@convex-gen/api";
 import type { Doc, Id } from "@convex-gen/dataModel";
+import { deleteCollectionType } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { ChevronLeft, Pencil } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { ChevronLeft, Pencil, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { useEncryption } from "@/lib/encryption-provider";
 import { useDecrypted } from "@/lib/use-decrypted";
 import { decryptOptionalText, decryptText } from "@/lib/encrypted-fields";
@@ -19,9 +34,28 @@ export function CollectionTypeDetailPage() {
 
 function CollectionTypeDetail({ id }: { id: string }) {
   const { dek } = useEncryption();
+  const { getAccessToken } = useAuth();
+  const navigate = useNavigate();
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const collectionType = useQuery(api.collectionTypes.getCollectionType, {
     collectionTypeId: id as Id<"collectionTypes">,
   });
+
+  async function handleDelete() {
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("Not authenticated");
+      await deleteCollectionType(token, id);
+      toast.success("Collection type deleted");
+      navigate("/collection-types");
+    } catch (e) {
+      console.error("Collection type delete failed:", e);
+      const msg = e instanceof Error ? e.message : "";
+      toast.error(
+        msg.includes("in use") ? "Collection type is in use" : "Failed to delete"
+      );
+    }
+  }
 
   const decrypted = useDecrypted(
     collectionType,
@@ -63,11 +97,38 @@ function CollectionTypeDetail({ id }: { id: string }) {
         </Button>
         <div className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between sm:gap-4">
           <h1 className="text-2xl font-bold">{decrypted.name}</h1>
-          <Button variant="outline" size="sm" asChild>
-            <Link to={`/collection-types/${id}/edit`}>
-              <Pencil className="size-4" />Edit
-            </Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" asChild>
+              <Link to={`/collection-types/${id}/edit`}>
+                <Pencil className="size-4" />Edit
+              </Link>
+            </Button>
+            <AlertDialog
+              open={confirmingDelete}
+              onOpenChange={setConfirmingDelete}
+            >
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Trash2 className="size-4" />Delete
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete collection type?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Delete <strong>{decrypted.name}</strong>? Any collections
+                    using this type must be moved off it first.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDelete}>
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </div>
         {decrypted.description && (
           <p className="text-muted-foreground mt-2">{decrypted.description}</p>

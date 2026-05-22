@@ -1,0 +1,29 @@
+{
+  "slug": "trading-card-pokemon",
+  "name": "Pokémon Trading Card",
+  "description": "Pokémon TCG card with set, rarity, holo type, and grading info.",
+  "category": "trading-cards",
+  "tags": ["pokemon", "tcg", "graded", "anime"],
+  "version": "1.0.0",
+  "descriptors": [
+    { "order": 1,  "key": "card-name",        "name": "Card Name",         "dataType": "text",    "required": false },
+    { "order": 2,  "key": "set",              "name": "Set",               "dataType": "text",    "required": false },
+    { "order": 3,  "key": "set-number",       "name": "Set Number",        "dataType": "text",    "required": false },
+    { "order": 4,  "key": "card-type",        "name": "Card Type",         "dataType": "select",  "required": false,
+      "options": ["Pokémon", "Trainer", "Energy"] },
+    { "order": 5,  "key": "rarity",           "name": "Rarity",            "dataType": "select",  "required": false,
+      "options": ["Common", "Uncommon", "Rare", "Holo Rare", "Ultra Rare", "Secret Rare", "Promo", "Illustration Rare", "Special Illustration Rare", "Hyper Rare"] },
+    { "order": 6,  "key": "holo-type",        "name": "Holo Type",         "dataType": "select",  "required": false,
+      "options": ["Non-Holo", "Holo", "Reverse Holo", "Full Art", "Textured", "Rainbow"] },
+    { "order": 7,  "key": "energy-type",      "name": "Energy Type",       "dataType": "select",  "required": false,
+      "options": ["Grass", "Fire", "Water", "Lightning", "Psychic", "Fighting", "Darkness", "Metal", "Fairy", "Dragon", "Colorless"] },
+    { "order": 8,  "key": "language",         "name": "Language",          "dataType": "select",  "required": false,
+      "options": ["English", "Japanese", "Korean", "Chinese", "German", "French", "Italian", "Spanish", "Portuguese"] },
+    { "order": 9,  "key": "first-edition",    "name": "First Edition",     "dataType": "boolean", "required": false },
+    { "order": 10, "key": "shadowless",       "name": "Shadowless",        "dataType": "boolean", "required": false },
+    { "order": 11, "key": "graded",           "name": "Graded",            "dataType": "boolean", "required": false },
+    { "order": 12, "key": "grading-service",  "name": "Grading Service",   "dataType": "select",  "required": false,
+      "options": ["PSA", "BGS", "CGC", "SGC", "Ungraded"] },
+    { "order": 13, "key": "grade",            "name": "Grade",             "dataType": "text",    "required": false }
+  ]
+}

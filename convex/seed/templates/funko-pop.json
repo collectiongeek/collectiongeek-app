@@ -1,0 +1,24 @@
+{
+  "slug": "funko-pop",
+  "name": "Funko Pop! Figure",
+  "description": "Funko Pop! vinyl figure with series, Pop number, variant, and exclusivity.",
+  "category": "figures-toys",
+  "tags": ["funko", "vinyl-figure", "pop-culture", "exclusive"],
+  "version": "1.0.0",
+  "descriptors": [
+    { "order": 1,  "key": "series-franchise",  "name": "Series / Franchise", "dataType": "text",    "required": false },
+    { "order": 2,  "key": "character",         "name": "Character",          "dataType": "text",    "required": false },
+    { "order": 3,  "key": "pop-number",        "name": "Pop Number",         "dataType": "text",    "required": false },
+    { "order": 4,  "key": "variant",           "name": "Variant",            "dataType": "select",  "required": false,
+      "options": ["Common", "Chase", "Flocked", "Glow in the Dark", "Metallic", "Diamond", "Black Light", "Scented", "Super-Sized"] },
+    { "order": 5,  "key": "exclusive-retailer","name": "Exclusive Retailer", "dataType": "select",  "required": false,
+      "options": ["None / Common Release", "Funko Shop", "Hot Topic", "Target", "Walmart", "GameStop", "Amazon", "Box Lunch", "SDCC", "NYCC", "ECCC", "Other Convention"] },
+    { "order": 6,  "key": "year-released",     "name": "Year Released",      "dataType": "year",    "required": false },
+    { "order": 7,  "key": "condition",         "name": "Condition",          "dataType": "select",  "required": false,
+      "options": ["Boxed — Mint", "Boxed — Near Mint", "Boxed — Damaged", "Loose / Out of Box"] },
+    { "order": 8,  "key": "protector",         "name": "Protector",          "dataType": "boolean", "required": false },
+    { "order": 9,  "key": "vaulted",           "name": "Vaulted",            "dataType": "boolean", "required": false },
+    { "order": 10, "key": "signed",            "name": "Signed",             "dataType": "boolean", "required": false },
+    { "order": 11, "key": "purchase-date",     "name": "Purchase Date",      "dataType": "date",    "required": false }
+  ]
+}

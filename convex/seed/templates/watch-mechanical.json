@@ -1,0 +1,24 @@
+{
+  "slug": "watch-mechanical",
+  "name": "Mechanical Watch",
+  "description": "Wristwatch with movement, reference, and provenance details.",
+  "category": "watches",
+  "tags": ["horology", "wristwatch", "luxury"],
+  "version": "1.0.0",
+  "descriptors": [
+    { "order": 1,  "key": "brand",             "name": "Brand",            "dataType": "text",    "required": false },
+    { "order": 2,  "key": "model",             "name": "Model",            "dataType": "text",    "required": false },
+    { "order": 3,  "key": "reference-number",  "name": "Reference Number", "dataType": "text",    "required": false },
+    { "order": 4,  "key": "year",              "name": "Year",             "dataType": "year",    "required": false },
+    { "order": 5,  "key": "movement",          "name": "Movement",         "dataType": "select",  "required": false,
+      "options": ["Automatic", "Manual", "Quartz", "Spring Drive", "Solar"] },
+    { "order": 6,  "key": "case-material",     "name": "Case Material",    "dataType": "select",  "required": false,
+      "options": ["Stainless Steel", "Gold", "Rose Gold", "White Gold", "Platinum", "Titanium", "Ceramic", "Bronze"] },
+    { "order": 7,  "key": "case-diameter-mm", "name": "Case Diameter (mm)", "dataType": "number", "required": false },
+    { "order": 8,  "key": "dial-color",        "name": "Dial Color",       "dataType": "text",    "required": false },
+    { "order": 9,  "key": "strap-bracelet",    "name": "Strap / Bracelet", "dataType": "text",    "required": false },
+    { "order": 10, "key": "box",               "name": "Box",              "dataType": "boolean", "required": false },
+    { "order": 11, "key": "papers",            "name": "Papers",           "dataType": "boolean", "required": false },
+    { "order": 12, "key": "last-service-date", "name": "Last Service Date","dataType": "date",    "required": false }
+  ]
+}

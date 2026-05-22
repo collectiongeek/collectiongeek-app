@@ -1,0 +1,19 @@
+[
+  { "slug": "trading-cards",   "name": "Trading Cards",     "icon": "Layers" },
+  { "slug": "coins",           "name": "Coins",             "icon": "Coins" },
+  { "slug": "stamps",          "name": "Stamps",            "icon": "Mail" },
+  { "slug": "comics",          "name": "Comics",            "icon": "BookText" },
+  { "slug": "vinyl-records",   "name": "Vinyl Records",     "icon": "Disc3" },
+  { "slug": "watches",         "name": "Watches",           "icon": "Watch" },
+  { "slug": "wine-spirits",    "name": "Wine & Spirits",    "icon": "Wine" },
+  { "slug": "sneakers",        "name": "Sneakers",          "icon": "Footprints" },
+  { "slug": "video-games",     "name": "Video Games",       "icon": "Gamepad2" },
+  { "slug": "board-games",     "name": "Board Games",       "icon": "Dice5" },
+  { "slug": "cameras",         "name": "Cameras",           "icon": "Camera" },
+  { "slug": "vehicles",        "name": "Vehicles",          "icon": "Car" },
+  { "slug": "art",             "name": "Art",               "icon": "Palette" },
+  { "slug": "books",           "name": "Books",             "icon": "BookOpen" },
+  { "slug": "memorabilia",     "name": "Memorabilia",       "icon": "Trophy" },
+  { "slug": "building-sets",   "name": "Building Sets",     "icon": "Blocks" },
+  { "slug": "figures-toys",    "name": "Figures & Toys",    "icon": "ToyBrick" }
+]

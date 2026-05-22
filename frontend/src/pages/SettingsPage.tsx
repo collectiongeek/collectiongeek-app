@@ -101,7 +101,8 @@ export function SettingsPage() {
       // bounces to /dashboard → ProtectedRoute re-runs ensureUser → the
       // just-deleted Convex user is re-created with an empty username.
       window.location.replace("/account-deleted");
-    } catch {
+    } catch (err) {
+      console.error("Account delete failed:", err);
       toast.error("Failed to delete account. Please try again.");
       setDeleting(false);
     }

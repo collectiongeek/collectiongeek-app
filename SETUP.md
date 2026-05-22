@@ -247,3 +247,77 @@ https://<your-dev-deployment>.convex.cloud/workos-webhook
 
 Register this URL in the WorkOS **Webhooks** section (Staging environment) to enable
 automatic user creation when someone signs up.
+
+---
+
+## 9. Seeding the asset-type template library
+
+The app ships with a curated catalog of ready-made asset types (LEGO sets,
+Pokémon cards, watches, vinyl records, …) that users can install with one
+click. The catalog lives in plaintext under `convex/seed/` — categories in
+`categories.json`, one JSON file per template under `templates/`.
+
+A fresh Convex deployment starts with an empty catalog. Seed it once per
+deployment.
+
+### Get a Convex deploy key
+
+The seed script calls an internal Convex mutation, which requires admin auth.
+
+1. Open the dashboard for your deployment: `npx convex dashboard`
+2. **Settings → Deploy keys → Generate a deploy key**
+3. Pick **Development** for local dev, **Production** for prod
+
+### Add it to `.env.local`
+
+Append to `/workspace/.env.local`:
+
+```text
+CONVEX_DEPLOY_KEY=dev:<paste-the-key>
+```
+
+The Go backend auto-loads `.env.local` at startup (see `cmd/server/main.go`),
+so this same value also satisfies the backend's `CONVEX_DEPLOY_KEY` requirement
+— no need to pass it inline on the `go run` command anymore.
+
+### Run the seed
+
+With `npx convex dev` running (so the schema and `assetTypeTemplates:upsertSeedBatch`
+internal mutation are deployed):
+
+```bash
+npm run seed:templates
+```
+
+Expected output:
+
+```text
+Validated 17 categories and 9 templates.
+Upserted: { categoriesUpserted: 17, templatesUpserted: 9 }
+```
+
+The mutation is idempotent. New rows insert, existing rows upsert by slug.
+Descriptors are replaced wholesale on each run — bumping a template's `version`
+field is what surfaces the "newer version available" UX to users who installed
+an earlier version.
+
+### Seeding production
+
+Same script, different env file:
+
+```bash
+node --env-file=.env.production.local scripts/seed-asset-templates.mjs
+```
+
+There is no `seed:templates:prod` npm alias on purpose — keeping prod a
+deliberate one-liner reduces the chance of someone running it accidentally.
+
+### Validating seed files without Convex
+
+Two equivalent paths:
+
+- `cd backend && go test ./internal/assettypetemplates/` — runs in CI on
+  every backend build, rejects bad slugs, unknown categories, non-contiguous
+  descriptor orders, missing select options, and invalid semver.
+- `node scripts/seed-asset-templates.mjs --check` (from repo root) — no
+  Convex credentials required; useful when authoring a new template.

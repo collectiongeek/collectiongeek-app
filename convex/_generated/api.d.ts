@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as assetTypeTemplates from "../assetTypeTemplates.js";
 import type * as assetTypes from "../assetTypes.js";
 import type * as assets from "../assets.js";
 import type * as auth from "../auth.js";
@@ -23,6 +24,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  assetTypeTemplates: typeof assetTypeTemplates;
   assetTypes: typeof assetTypes;
   assets: typeof assets;
   auth: typeof auth;

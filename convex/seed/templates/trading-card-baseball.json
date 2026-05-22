@@ -1,0 +1,22 @@
+{
+  "slug": "trading-card-baseball",
+  "name": "Baseball Trading Card",
+  "description": "Standard baseball card with player, set, and grading info.",
+  "category": "trading-cards",
+  "tags": ["baseball", "sports", "graded"],
+  "version": "1.0.0",
+  "descriptors": [
+    { "order": 1,  "key": "player",          "name": "Player",          "dataType": "text",    "required": false },
+    { "order": 2,  "key": "team",            "name": "Team",            "dataType": "text",    "required": false },
+    { "order": 3,  "key": "year",            "name": "Year",            "dataType": "year",    "required": false },
+    { "order": 4,  "key": "set-brand",       "name": "Set / Brand",     "dataType": "text",    "required": false },
+    { "order": 5,  "key": "card-number",     "name": "Card Number",     "dataType": "text",    "required": false },
+    { "order": 6,  "key": "condition",       "name": "Condition",       "dataType": "select",  "required": false,
+      "options": ["Mint", "Near Mint", "Excellent", "Very Good", "Good", "Fair", "Poor"] },
+    { "order": 7,  "key": "graded",          "name": "Graded",          "dataType": "boolean", "required": false },
+    { "order": 8,  "key": "grading-service", "name": "Grading Service", "dataType": "select",  "required": false,
+      "options": ["PSA", "BGS", "SGC", "CGC"] },
+    { "order": 9,  "key": "grade",           "name": "Grade",           "dataType": "text",    "required": false },
+    { "order": 10, "key": "rookie-card",     "name": "Rookie Card",     "dataType": "boolean", "required": false }
+  ]
+}

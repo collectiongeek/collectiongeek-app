@@ -1,0 +1,22 @@
+{
+  "slug": "coin-us-modern",
+  "name": "U.S. Modern Coin",
+  "description": "Modern United States coin with mint, denomination, and grade.",
+  "category": "coins",
+  "tags": ["us", "numismatics", "modern"],
+  "version": "1.0.0",
+  "descriptors": [
+    { "order": 1, "key": "denomination",     "name": "Denomination", "dataType": "select", "required": false,
+      "options": ["Cent", "Nickel", "Dime", "Quarter", "Half Dollar", "Dollar", "Commemorative"] },
+    { "order": 2, "key": "year",             "name": "Year",            "dataType": "year",   "required": false },
+    { "order": 3, "key": "mint-mark",        "name": "Mint Mark",       "dataType": "select", "required": false,
+      "options": ["P (Philadelphia)", "D (Denver)", "S (San Francisco)", "W (West Point)", "None"] },
+    { "order": 4, "key": "series-design",    "name": "Series / Design", "dataType": "text",   "required": false },
+    { "order": 5, "key": "composition",      "name": "Composition",     "dataType": "text",   "required": false },
+    { "order": 6, "key": "grade",            "name": "Grade",           "dataType": "text",   "required": false },
+    { "order": 7, "key": "grading-service",  "name": "Grading Service", "dataType": "select", "required": false,
+      "options": ["PCGS", "NGC", "ANACS", "ICG"] },
+    { "order": 8, "key": "slab-cert-number", "name": "Slab / Cert #",   "dataType": "text",   "required": false },
+    { "order": 9, "key": "mintage",          "name": "Mintage",         "dataType": "number", "required": false }
+  ]
+}

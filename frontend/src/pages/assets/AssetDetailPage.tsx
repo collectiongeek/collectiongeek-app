@@ -115,7 +115,8 @@ function AssetDetail({ id }: { id: string }) {
       await deleteAsset(token, id);
       toast.success("Asset deleted");
       navigate(target);
-    } catch {
+    } catch (err) {
+      console.error("Asset delete failed:", err);
       toast.error("Failed to delete asset");
     }
   }

@@ -28,6 +28,9 @@ type descriptorInput struct {
 	Options  string `json:"options,omitempty"`
 	Required bool   `json:"required"`
 	Order    int    `json:"order"`
+	// Plaintext stable identifier carried over from a source template
+	// descriptor at install time. Omitted for user-authored descriptors.
+	SourceKey string `json:"sourceKey,omitempty"`
 }
 
 var allowedDataTypes = map[string]bool{
@@ -68,6 +71,10 @@ func (h *AssetTypesHandler) CreateAssetType(w http.ResponseWriter, r *http.Reque
 		Name        string            `json:"name"`
 		Description string            `json:"description"`
 		Descriptors []descriptorInput `json:"descriptors"`
+		// Optional provenance when the asset type was installed from a public
+		// template. Plaintext on purpose — public template identifiers.
+		SourceTemplateSlug    string `json:"sourceTemplateSlug,omitempty"`
+		SourceTemplateVersion string `json:"sourceTemplateVersion,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
@@ -92,6 +99,12 @@ func (h *AssetTypesHandler) CreateAssetType(w http.ResponseWriter, r *http.Reque
 	}
 	if len(body.Descriptors) > 0 {
 		args["descriptors"] = body.Descriptors
+	}
+	if body.SourceTemplateSlug != "" {
+		args["sourceTemplateSlug"] = body.SourceTemplateSlug
+	}
+	if body.SourceTemplateVersion != "" {
+		args["sourceTemplateVersion"] = body.SourceTemplateVersion
 	}
 
 	var result struct {

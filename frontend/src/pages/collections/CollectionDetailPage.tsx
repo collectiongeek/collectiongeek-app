@@ -5,7 +5,7 @@ import { useAuth } from "@workos-inc/authkit-react";
 import { api } from "@convex-gen/api";
 import type { Id } from "@convex-gen/dataModel";
 import { formatCents } from "@/lib/utils";
-import { deleteAsset } from "@/lib/api";
+import { deleteAsset, deleteCollection } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -54,6 +54,7 @@ function CollectionDetail({ id }: { id: string }) {
   const { dek } = useEncryption();
   const navigate = useNavigate();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmingDeleteCollection, setConfirmingDeleteCollection] = useState(false);
 
   const collectionId = id as Id<"collections">;
   const collection = useQuery(api.collections.getCollection, { collectionId });
@@ -96,8 +97,25 @@ function CollectionDetail({ id }: { id: string }) {
       if (!token) throw new Error("Not authenticated");
       await deleteAsset(token, assetId);
       toast.success("Asset deleted");
-    } catch {
+    } catch (err) {
+      console.error("Asset delete failed:", err);
       toast.error("Failed to delete asset");
+    }
+  }
+
+  // Deletes the collection itself (not its assets). Assets stay around as
+  // standalone — they're owned independently and may belong to other
+  // collections.
+  async function handleDeleteCollection() {
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("Not authenticated");
+      await deleteCollection(token, id);
+      toast.success("Collection deleted");
+      navigate("/dashboard");
+    } catch (err) {
+      console.error("Collection delete failed:", err);
+      toast.error("Failed to delete collection");
     }
   }
 
@@ -162,10 +180,37 @@ function CollectionDetail({ id }: { id: string }) {
               </span>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" asChild>
               <Link to={`/collections/${id}/edit`}><Pencil className="size-4" />Edit</Link>
             </Button>
+            <AlertDialog
+              open={confirmingDeleteCollection}
+              onOpenChange={setConfirmingDeleteCollection}
+            >
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Trash2 className="size-4" />Delete
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete collection?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Delete <strong>{decryptedCollection.name}</strong>? The
+                    {assetCount > 0 ? ` ${assetCount} asset${assetCount === 1 ? "" : "s"} in this collection ` : " "}
+                    will not be deleted — they remain as standalone assets and
+                    in any other collections they belong to.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDeleteCollection}>
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
             <Button size="sm" asChild>
               <Link to={`/collections/${id}/assets/new`}><Plus className="size-4" />Add asset</Link>
             </Button>

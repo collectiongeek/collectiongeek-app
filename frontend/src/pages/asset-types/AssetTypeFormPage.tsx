@@ -46,6 +46,11 @@ interface DescriptorRow {
   order: number;
   /** Comma-separated text the user types for `select` options. */
   optionsRaw: string;
+  /** Preserved across edits when the row came from a template install;
+   *  undefined for rows the user added by hand. Never exposed in the UI —
+   *  we want users to rename freely without realising the row carries a
+   *  stable identity used by the future upgrade-diff. */
+  sourceKey?: string;
 }
 
 function emptyDescriptor(order: number): DescriptorRow {
@@ -104,6 +109,7 @@ function EditAssetTypeLoader({ id }: { id: string }) {
               required: d.required,
               order: d.order,
               optionsRaw: options ? options.join(", ") : "",
+              sourceKey: d.sourceKey,
             };
           })
         ),
@@ -187,6 +193,7 @@ function AssetTypeForm({ mode, assetTypeId, initial }: FormProps) {
               required: d.required,
               order: idx,
               options: await encryptOptionalArray(optionsArr, dek),
+              sourceKey: d.sourceKey,
             };
           })
       );

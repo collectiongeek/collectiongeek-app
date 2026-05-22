@@ -25,17 +25,18 @@ See [SETUP.md](SETUP.md) for the full walkthrough: WorkOS project config, Convex
 
 **`frontend/.env.local`** (Vite dev server — copy from `frontend/.env.local.example`)
 
-```
+```text
 VITE_API_BASE_URL=http://localhost:8081
 VITE_WORKOS_CLIENT_ID=client_...      # WorkOS Staging Client ID
 VITE_CONVEX_URL=https://....convex.cloud
 ```
 
-**`.env.local`** (Convex CLI — copy from `.env.local.example`)
+**`.env.local`** (Convex CLI, Go backend, seed script — copy from `.env.local.example`)
 
-```
+```text
 WORKOS_CLIENT_ID=client_...           # WorkOS Staging Client ID
 WORKOS_API_KEY=sk_test_...            # WorkOS Staging API key
+CONVEX_DEPLOY_KEY=dev:...             # Convex admin auth (Settings → Deploy keys)
 ```
 
 ## Run locally (dev mode, with hot-reload)
@@ -62,6 +63,9 @@ go run ./cmd/server
 
 > Replace `go run ./cmd/server` with `air` if you want automatic restart on file changes.
 
+> Values present in `/workspace/.env.local` are auto-loaded by the backend at
+> startup, so you can drop any prefix that's already set there.
+
 **Terminal 3 — Vite dev server**
 
 ```bash
@@ -77,6 +81,10 @@ cd frontend && npm run dev
 
 > **WorkOS redirect URI:** add `http://localhost:3000/callback` to your WorkOS Staging
 > environment under Authentication → AuthKit → Redirect URIs.
+
+> **Asset-type template library:** a fresh Convex deployment starts with an empty
+> catalog. Run `npm run seed:templates` once to populate it. Full walkthrough in
+> [SETUP.md §9](SETUP.md#9-seeding-the-asset-type-template-library).
 
 ## Run locally (production containers)
 

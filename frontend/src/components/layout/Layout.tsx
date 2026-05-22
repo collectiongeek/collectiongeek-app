@@ -31,6 +31,7 @@ const navItems = [
   { to: "/assets", label: "Assets" },
   { to: "/asset-types", label: "Asset types" },
   { to: "/collection-types", label: "Collection types" },
+  { to: "/templates", label: "Templates" },
 ];
 
 export function Layout() {

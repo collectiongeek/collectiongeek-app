@@ -35,6 +35,7 @@ export function CollectionTypesListPage() {
       await deleteCollectionType(token, id);
       toast.success("Collection type deleted");
     } catch (e) {
+      console.error("Collection type delete failed:", e);
       const msg = e instanceof Error ? e.message : "";
       toast.error(msg.includes("in use") ? "Collection type is in use" : "Failed to delete");
     }

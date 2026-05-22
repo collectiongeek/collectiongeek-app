@@ -18,6 +18,11 @@ const descriptorInput = v.object({
   options: v.optional(v.string()),
   required: v.boolean(),
   order: v.number(),
+  // Plaintext provenance: set when this descriptor was installed from a
+  // template (carries the template descriptor's stable `key`). Absent for
+  // user-authored descriptors. Edits preserve it so the upgrade-diff still
+  // matches identity even after the user renames the field.
+  sourceKey: v.optional(v.string()),
 });
 
 export const listAssetTypes = query({
@@ -58,20 +63,46 @@ export const createAssetType = internalMutation({
     name: v.string(),
     description: v.optional(v.string()),
     descriptors: v.optional(v.array(descriptorInput)),
+    // Set by the client when this asset type was installed from a public
+    // template. Both plaintext (public template identifiers, not user content).
+    sourceTemplateSlug: v.optional(v.string()),
+    sourceTemplateVersion: v.optional(v.string()),
   },
-  handler: async (ctx, { workosUserId, name, description, descriptors }) => {
+  handler: async (
+    ctx,
+    {
+      workosUserId,
+      name,
+      description,
+      descriptors,
+      sourceTemplateSlug,
+      sourceTemplateVersion,
+    }
+  ) => {
     const user = await ctx.db
       .query("users")
       .withIndex("by_workos_id", (q) => q.eq("workosUserId", workosUserId))
       .unique();
     if (!user) throw new Error("User not found");
 
+    // Provenance is all-or-nothing. Half-set state would mislead the future
+    // upgrade-diff UI (slug without version = no comparison target;
+    // version without slug = orphaned). Reject early.
+    if ((sourceTemplateSlug == null) !== (sourceTemplateVersion == null)) {
+      throw new Error(
+        "sourceTemplateSlug and sourceTemplateVersion must both be set or both omitted"
+      );
+    }
+
+    const now = Date.now();
     const assetTypeId = await ctx.db.insert("assetTypes", {
       userId: user._id,
       name,
       description,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
+      createdAt: now,
+      updatedAt: now,
+      sourceTemplateSlug,
+      sourceTemplateVersion,
     });
 
     if (descriptors && descriptors.length > 0) {
@@ -80,6 +111,21 @@ export const createAssetType = internalMutation({
           ctx.db.insert("assetTypeDescriptors", { assetTypeId, ...d })
         )
       );
+    }
+
+    // Bump installCount on the source template (best-effort: silently skip if
+    // the slug no longer exists — a template could have been deprecated since
+    // the client fetched it).
+    if (sourceTemplateSlug) {
+      const template = await ctx.db
+        .query("assetTypeTemplates")
+        .withIndex("by_slug", (q) => q.eq("slug", sourceTemplateSlug))
+        .unique();
+      if (template) {
+        await ctx.db.patch(template._id, {
+          installCount: template.installCount + 1,
+        });
+      }
     }
 
     return { id: assetTypeId };
