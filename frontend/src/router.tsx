@@ -49,6 +49,17 @@ const AssetTypeDetailPage = lazy(() =>
   }))
 );
 
+const TemplateLibraryPage = lazy(() =>
+  import("@/pages/templates/TemplateLibraryPage").then((m) => ({
+    default: m.TemplateLibraryPage,
+  }))
+);
+const TemplateDetailPage = lazy(() =>
+  import("@/pages/templates/TemplateDetailPage").then((m) => ({
+    default: m.TemplateDetailPage,
+  }))
+);
+
 const CollectionTypesListPage = lazy(() =>
   import("@/pages/collection-types/CollectionTypesListPage").then((m) => ({
     default: m.CollectionTypesListPage,
@@ -152,6 +163,9 @@ export const router = createBrowserRouter([
               { path: "/asset-types/new", element: <CreateAssetTypePage /> },
               { path: "/asset-types/:id", element: <AssetTypeDetailPage /> },
               { path: "/asset-types/:id/edit", element: <EditAssetTypePage /> },
+
+              { path: "/templates", element: <TemplateLibraryPage /> },
+              { path: "/templates/:slug", element: <TemplateDetailPage /> },
 
               { path: "/collection-types", element: <CollectionTypesListPage /> },
               { path: "/collection-types/new", element: <CreateCollectionTypePage /> },

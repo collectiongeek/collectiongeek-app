@@ -1,9 +1,11 @@
 {
   "name": "collectiongeek",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev:convex": "convex dev",
-    "deploy:convex": "convex deploy"
+    "deploy:convex": "convex deploy",
+    "seed:templates": "node --env-file-if-exists=.env.local scripts/seed-asset-templates.mjs"
   },
   "dependencies": {
     "convex": "^1.39.1"

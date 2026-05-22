@@ -1,0 +1,24 @@
+{
+  "slug": "lego-set",
+  "name": "LEGO Set",
+  "description": "Official LEGO set tracked by set number, theme, and sealed status.",
+  "category": "building-sets",
+  "tags": ["lego", "kidult", "sealed", "minifigures"],
+  "version": "1.0.0",
+  "descriptors": [
+    { "order": 1,  "key": "set-number",       "name": "Set Number",        "dataType": "text",    "required": false },
+    { "order": 2,  "key": "set-name",         "name": "Set Name",          "dataType": "text",    "required": false },
+    { "order": 3,  "key": "theme",            "name": "Theme",             "dataType": "select",  "required": false,
+      "options": ["Star Wars", "Harry Potter", "Marvel", "DC", "Icons", "Technic", "Creator Expert", "Architecture", "Botanicals", "Ideas", "City", "Friends", "Ninjago", "Disney", "Speed Champions", "Other"] },
+    { "order": 4,  "key": "year-released",    "name": "Year Released",     "dataType": "year",    "required": false },
+    { "order": 5,  "key": "piece-count",      "name": "Piece Count",       "dataType": "number",  "required": false },
+    { "order": 6,  "key": "minifigure-count", "name": "Minifigure Count",  "dataType": "number",  "required": false },
+    { "order": 7,  "key": "status",           "name": "Status",            "dataType": "select",  "required": false,
+      "options": ["Sealed (MISB)", "Opened — Complete", "Opened — Built", "Opened — Incomplete"] },
+    { "order": 8,  "key": "box-condition",    "name": "Box Condition",     "dataType": "select",  "required": false,
+      "options": ["Mint", "Near Mint", "Good", "Fair", "Poor", "No Box"] },
+    { "order": 9,  "key": "instructions",     "name": "Instructions",      "dataType": "boolean", "required": false },
+    { "order": 10, "key": "retired-set",      "name": "Retired Set",       "dataType": "boolean", "required": false },
+    { "order": 11, "key": "purchase-date",    "name": "Purchase Date",     "dataType": "date",    "required": false }
+  ]
+}

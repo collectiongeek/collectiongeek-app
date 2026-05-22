@@ -111,12 +111,21 @@ export interface DescriptorInput {
   options?: string;
   required: boolean;
   order: number;
+  /** Plaintext stable identifier carried over from a source template
+   *  descriptor at install time. Edits preserve it; user-authored
+   *  descriptors leave it undefined. */
+  sourceKey?: string;
 }
 
 export interface AssetTypePayload {
   name: string;
   description?: string;
   descriptors?: DescriptorInput[];
+  // Set when installing from a public template — plaintext, public identifiers.
+  // The server records them on the asset type and bumps the template's
+  // installCount atomically.
+  sourceTemplateSlug?: string;
+  sourceTemplateVersion?: string;
 }
 
 export function createAssetType(token: string, data: AssetTypePayload) {

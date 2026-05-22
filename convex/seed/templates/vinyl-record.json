@@ -1,0 +1,27 @@
+{
+  "slug": "vinyl-record",
+  "name": "Vinyl Record",
+  "description": "LP, EP, or single with pressing, format, and condition details.",
+  "category": "vinyl-records",
+  "tags": ["music", "lp", "analog"],
+  "version": "1.0.0",
+  "descriptors": [
+    { "order": 1,  "key": "artist",            "name": "Artist",            "dataType": "text",   "required": false },
+    { "order": 2,  "key": "album-title",       "name": "Album Title",       "dataType": "text",   "required": false },
+    { "order": 3,  "key": "label",             "name": "Label",             "dataType": "text",   "required": false },
+    { "order": 4,  "key": "catalog-number",    "name": "Catalog Number",    "dataType": "text",   "required": false },
+    { "order": 5,  "key": "year",              "name": "Year",              "dataType": "year",   "required": false },
+    { "order": 6,  "key": "pressing-edition",  "name": "Pressing / Edition","dataType": "text",   "required": false },
+    { "order": 7,  "key": "format",            "name": "Format",            "dataType": "select", "required": false,
+      "options": ["LP (12\")", "EP (10\")", "Single (7\")", "Maxi-Single (12\")"] },
+    { "order": 8,  "key": "speed-rpm",         "name": "Speed (RPM)",       "dataType": "select", "required": false,
+      "options": ["33 1/3", "45", "78"] },
+    { "order": 9,  "key": "vinyl-variant",     "name": "Vinyl Variant",     "dataType": "select", "required": false,
+      "options": ["Black", "Colored", "Splatter", "Marbled", "Picture Disc", "Clear"] },
+    { "order": 10, "key": "sleeve-grade",      "name": "Sleeve Grade",      "dataType": "select", "required": false,
+      "options": ["Mint", "Near Mint", "Very Good Plus", "Very Good", "Good", "Fair", "Poor"] },
+    { "order": 11, "key": "media-grade",       "name": "Media Grade",       "dataType": "select", "required": false,
+      "options": ["Mint", "Near Mint", "Very Good Plus", "Very Good", "Good", "Fair", "Poor"] },
+    { "order": 12, "key": "signed",            "name": "Signed",            "dataType": "boolean","required": false }
+  ]
+}

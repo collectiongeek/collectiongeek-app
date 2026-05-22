@@ -16,7 +16,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Pencil, Plus, Tags, Trash2 } from "lucide-react";
+import { Library, MoreHorizontal, Pencil, Plus, Tags, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useEncryption } from "@/lib/encryption-provider";
 import { useDecrypted } from "@/lib/use-decrypted";
@@ -38,6 +38,7 @@ export function AssetTypesListPage() {
       await deleteAssetType(token, id);
       toast.success("Asset type deleted");
     } catch (e) {
+      console.error("Asset type delete failed:", e);
       const msg = e instanceof Error ? e.message : "";
       toast.error(msg.includes("in use") ? "Asset type is in use" : "Failed to delete");
     }
@@ -54,11 +55,16 @@ export function AssetTypesListPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <h1 className="text-2xl font-bold">Asset Types</h1>
-        <Button asChild>
-          <Link to="/asset-types/new"><Plus className="size-4" />New asset type</Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" asChild>
+            <Link to="/templates"><Library className="size-4" />Browse library</Link>
+          </Button>
+          <Button asChild>
+            <Link to="/asset-types/new"><Plus className="size-4" />New asset type</Link>
+          </Button>
+        </div>
       </div>
 
       {assetTypes.length === 0 ? (
@@ -66,11 +72,17 @@ export function AssetTypesListPage() {
           <Tags className="size-10 text-muted-foreground mb-4" />
           <h2 className="text-lg font-semibold">No asset types yet</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Define the kinds of things you collect (Coin, Book, Car, …) and the fields they share.
+            Install a ready-made asset type from the template library, or
+            define your own (Coin, Book, Car, …) and the fields it should track.
           </p>
-          <Button className="mt-6" asChild>
-            <Link to="/asset-types/new"><Plus className="size-4" />New asset type</Link>
-          </Button>
+          <div className="mt-6 flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
+            <Button asChild>
+              <Link to="/templates"><Library className="size-4" />Browse template library</Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link to="/asset-types/new"><Plus className="size-4" />New asset type</Link>
+            </Button>
+          </div>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

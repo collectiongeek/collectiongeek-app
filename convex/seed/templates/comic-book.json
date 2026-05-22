@@ -1,0 +1,24 @@
+{
+  "slug": "comic-book",
+  "name": "Comic Book",
+  "description": "Single-issue comic with publisher, creators, and grading info.",
+  "category": "comics",
+  "tags": ["comics", "graded", "key-issue"],
+  "version": "1.0.0",
+  "descriptors": [
+    { "order": 1,  "key": "title",             "name": "Title",             "dataType": "text",    "required": false },
+    { "order": 2,  "key": "issue-number",      "name": "Issue Number",      "dataType": "text",    "required": false },
+    { "order": 3,  "key": "publisher",         "name": "Publisher",         "dataType": "select",  "required": false,
+      "options": ["Marvel", "DC", "Image", "Dark Horse", "IDW", "Boom! Studios", "Valiant", "Other"] },
+    { "order": 4,  "key": "cover-date",        "name": "Cover Date",        "dataType": "date",    "required": false },
+    { "order": 5,  "key": "variant-cover",     "name": "Variant Cover",     "dataType": "text",    "required": false },
+    { "order": 6,  "key": "writer",            "name": "Writer",            "dataType": "text",    "required": false },
+    { "order": 7,  "key": "artist",            "name": "Artist",            "dataType": "text",    "required": false },
+    { "order": 8,  "key": "condition-grade",   "name": "Condition / Grade", "dataType": "text",    "required": false },
+    { "order": 9,  "key": "grading-service",   "name": "Grading Service",   "dataType": "select",  "required": false,
+      "options": ["CGC", "CBCS", "PGX", "Ungraded"] },
+    { "order": 10, "key": "slab-cert-number",  "name": "Slab / Cert #",     "dataType": "text",    "required": false },
+    { "order": 11, "key": "key-issue",         "name": "Key Issue",         "dataType": "boolean", "required": false },
+    { "order": 12, "key": "first-appearance",  "name": "First Appearance",  "dataType": "text",    "required": false }
+  ]
+}

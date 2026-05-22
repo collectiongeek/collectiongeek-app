@@ -1,0 +1,25 @@
+{
+  "slug": "vehicle-car-classic",
+  "name": "Classic Car",
+  "description": "Collector automobile with VIN, drivetrain, and restoration status.",
+  "category": "vehicles",
+  "tags": ["automotive", "classic", "restored"],
+  "version": "1.0.0",
+  "descriptors": [
+    { "order": 1,  "key": "make",                "name": "Make",                "dataType": "text",   "required": false },
+    { "order": 2,  "key": "model",               "name": "Model",               "dataType": "text",   "required": false },
+    { "order": 3,  "key": "year",                "name": "Year",                "dataType": "year",   "required": false },
+    { "order": 4,  "key": "body-style",          "name": "Body Style",          "dataType": "select", "required": false,
+      "options": ["Coupe", "Sedan", "Convertible", "Wagon", "Hatchback", "Pickup", "SUV", "Roadster"] },
+    { "order": 5,  "key": "vin",                 "name": "VIN",                 "dataType": "text",   "required": false },
+    { "order": 6,  "key": "engine",              "name": "Engine",              "dataType": "text",   "required": false },
+    { "order": 7,  "key": "transmission",        "name": "Transmission",        "dataType": "select", "required": false,
+      "options": ["Manual", "Automatic", "Semi-Automatic", "CVT"] },
+    { "order": 8,  "key": "mileage",             "name": "Mileage",             "dataType": "number", "required": false },
+    { "order": 9,  "key": "exterior-color",      "name": "Exterior Color",      "dataType": "text",   "required": false },
+    { "order": 10, "key": "interior-color",      "name": "Interior Color",      "dataType": "text",   "required": false },
+    { "order": 11, "key": "restoration-status",  "name": "Restoration Status",  "dataType": "select", "required": false,
+      "options": ["Original / Unrestored", "Partial Restoration", "Full Restoration", "Modified / Custom", "Project Car"] },
+    { "order": 12, "key": "production-number",   "name": "Production Number",   "dataType": "number", "required": false }
+  ]
+}

@@ -158,7 +158,8 @@ export function DashboardPage() {
       if (!token) throw new Error("Not authenticated");
       await deleteCollection(token, id);
       toast.success("Collection deleted");
-    } catch {
+    } catch (err) {
+      console.error("Collection delete failed:", err);
       toast.error("Failed to delete collection");
     }
   }
@@ -246,15 +247,15 @@ export function DashboardPage() {
                 aria-label="Show total values"
                 onClick={toggleShowValues}
                 className={cn(
-                  "relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  "relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full border border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:h-5 md:w-9",
                   showValues ? "bg-primary" : "bg-muted-foreground/50"
                 )}
               >
                 <span
                   aria-hidden="true"
                   className={cn(
-                    "pointer-events-none block size-4 rounded-full bg-background shadow-sm ring-0 transition-transform",
-                    showValues ? "translate-x-4" : "translate-x-0.5"
+                    "pointer-events-none block size-6 rounded-full bg-background shadow-sm ring-0 transition-transform md:size-4",
+                    showValues ? "translate-x-5 md:translate-x-4" : "translate-x-0.5"
                   )}
                 />
               </button>
