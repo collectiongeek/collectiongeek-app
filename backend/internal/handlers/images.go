@@ -175,6 +175,8 @@ func writeImagesConvexError(w http.ResponseWriter, err error, fallback string) {
 		http.Error(w, "Image not found", http.StatusNotFound)
 	case strings.Contains(msg, "Image limit reached"):
 		http.Error(w, "Image limit reached", http.StatusConflict)
+	case strings.Contains(msg, "Image already recorded"):
+		http.Error(w, "Image already recorded", http.StatusConflict)
 	default:
 		http.Error(w, fallback, http.StatusInternalServerError)
 	}

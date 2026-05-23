@@ -49,7 +49,7 @@ Plaintext on the server. None of these contain user-authored content beyond what
 - **Counts and sizes**: an operator can see that you have N collections containing M assets each, even without knowing their names.
 - Your **UI preferences** (theme, theme mode).
 - **The fact that you have encryption set up** (the presence of `wrappedDek`/`keySalt` on your user record).
-- **The owner identifier on each image blob.** A 6-byte magic + 1-byte length + your WorkOS user id ride in the clear at the front of every encrypted image. The image _content_ stays encrypted. See the next section for what this is for.
+- **The owner identifier on each image blob.** A 6-byte fixed header (4-byte `CGEK` magic + 1-byte version + 1-byte user-id length) followed by your WorkOS user id rides in the clear at the front of every encrypted image. The image _content_ stays encrypted. See the next section for what this is for.
 
 ## Image bytes and the owner header
 

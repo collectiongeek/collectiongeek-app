@@ -48,6 +48,10 @@ export function EncryptedThumbnail({
       // Clearing in response to a missing input is valid; the lint rule
       // would prefer a render-time check but that doesn't compose with
       // the async-fetch path below.
+      // Also clear loadingForRef so a still-pending decrypt from the
+      // PREVIOUS render can't pass its `sid === loadingForRef.current`
+      // gate and write a stale URL into state.
+      loadingForRef.current = null;
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setObjectUrl(null);
       setCropView(DEFAULT_CROP_VIEW);

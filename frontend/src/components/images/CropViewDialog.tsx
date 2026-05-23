@@ -240,7 +240,10 @@ export function CropViewDialog({
           >
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={saving || loading}>
+          <Button
+            onClick={handleSave}
+            disabled={saving || loading || !croppedArea || !naturalSize}
+          >
             {saving && <Loader2 className="size-4 animate-spin" />}
             Save
           </Button>

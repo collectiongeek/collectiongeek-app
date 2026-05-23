@@ -69,6 +69,11 @@ export const listPrimariesByAssetIds = query({
           .query("assetImages")
           .withIndex("by_asset", (q) => q.eq("assetId", assetId))
           .collect();
+        // Sort before the fallback so the "no primary flagged" path
+        // picks the lowest-position survivor deterministically — that's
+        // also what deleteImage promotes when removing a primary, so
+        // the two stay consistent.
+        rows.sort((a, b) => a.position - b.position);
         const primary = rows.find((r) => r.isPrimary) ?? rows[0];
         if (!primary) return null;
         return {
@@ -129,6 +134,20 @@ export const recordImage = internalMutation({
   ) => {
     const user = await resolveUser(ctx, workosUserId);
     await assertAssetOwned(ctx, assetId, user._id);
+
+    // A retried recordImage call (network blip after a successful upload)
+    // would create a second row pointing at the same storage blob.
+    // Deleting either row later would then nuke bytes the other still
+    // references — image-lifecycle corruption. Reject duplicates here.
+    // DO NOT delete the storage blob in this branch: it's legitimately
+    // owned by the existing row.
+    const dupForStorage = await ctx.db
+      .query("assetImages")
+      .withIndex("by_storage", (q) => q.eq("storageId", storageId))
+      .unique();
+    if (dupForStorage) {
+      throw new Error("Image already recorded");
+    }
 
     const existing = await ctx.db
       .query("assetImages")

@@ -228,7 +228,7 @@ export function AssetImagesManager({ assetId }: Props) {
               <p className="text-xs text-muted-foreground">
                 {full
                   ? `Image limit reached (${MAX_IMAGES_PER_ASSET}). Delete one to add another.`
-                  : "Drag here or click to add more."}
+                  : "Drag photos here, or use the button to pick."}
               </p>
               <Button
                 type="button"

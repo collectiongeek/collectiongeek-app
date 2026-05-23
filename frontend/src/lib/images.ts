@@ -197,21 +197,52 @@ export async function fetchAndDecryptImage(
 //
 // Decrypting an image is the expensive step (fetch + AES-GCM + Blob), so
 // thumbnails and the lightbox cooperate through one module-level cache
-// keyed by storageId. Entries persist for the tab's lifetime — the
-// working set is bounded by 6 images per asset × the number of distinct
-// assets the user views, so the memory cost is negligible. The browser
-// frees the URLs on reload.
+// keyed by storageId.
+//
+// The cache is LRU-bounded: 6 images × 500 KB × hundreds of assets in a
+// long browse session is real memory, so we cap at MAX_CACHE_ENTRIES
+// and revoke the oldest object URL when the cap is exceeded. The
+// underlying Map preserves insertion order, so an LRU is just
+// "delete + reinsert on touch" plus "drop the oldest key on overflow."
+
+const MAX_CACHE_ENTRIES = 100;
 const objectUrlCache = new Map<string, string>();
-const inFlight = new Map<string, Promise<string>>();
+// Identity of an in-flight fetch is tracked via an opaque token so the
+// resolving promise can check "was I evicted while fetching?" without
+// referencing itself (which TS can't flow-analyze across an async IIFE).
+interface InFlightSlot {
+  promise: Promise<string>;
+  token: object;
+}
+const inFlight = new Map<string, InFlightSlot>();
+
+function touchCache(storageId: string): void {
+  const url = objectUrlCache.get(storageId);
+  if (url === undefined) return;
+  // Delete + reinsert moves the entry to the most-recently-used end.
+  objectUrlCache.delete(storageId);
+  objectUrlCache.set(storageId, url);
+}
+
+function insertCache(storageId: string, url: string): void {
+  objectUrlCache.set(storageId, url);
+  while (objectUrlCache.size > MAX_CACHE_ENTRIES) {
+    const oldest = objectUrlCache.keys().next().value;
+    if (oldest === undefined) break;
+    const oldUrl = objectUrlCache.get(oldest);
+    if (oldUrl) URL.revokeObjectURL(oldUrl);
+    objectUrlCache.delete(oldest);
+  }
+}
 
 /**
  * Returns a decrypted-image object URL for the given storage record,
  * sharing one entry across all callers (thumbnail + lightbox + crop
  * dialog). Concurrent calls for the same storageId are coalesced.
  *
- * The cache owns the URL — DO NOT revoke it. A separate module-level
- * lifetime is intentional; thumbnails and the lightbox can come and go
- * without paying the decryption cost more than once per image per tab.
+ * The cache owns the URL — DO NOT revoke it. Eviction (LRU overflow or
+ * explicit {@link evictDecryptedImageUrl}) revokes; everything else
+ * just hands out the cached handle.
  */
 export async function getDecryptedImageUrl(
   storageId: string,
@@ -219,26 +250,47 @@ export async function getDecryptedImageUrl(
   dek: CryptoKey
 ): Promise<string> {
   const cached = objectUrlCache.get(storageId);
-  if (cached) return cached;
+  if (cached) {
+    touchCache(storageId);
+    return cached;
+  }
   const pending = inFlight.get(storageId);
-  if (pending) return pending;
-  const p = (async () => {
+  if (pending) return pending.promise;
+  // Fresh token per call. `evict` clears the slot, so when the fetch
+  // resolves we can tell "is the slot still ours?" via identity.
+  const token: object = {};
+  const promise = (async () => {
     try {
       const { objectUrl } = await fetchAndDecryptImage(storageUrl, dek);
-      objectUrlCache.set(storageId, objectUrl);
+      if (inFlight.get(storageId)?.token !== token) {
+        // Evicted (or superseded) while we were fetching: drop the URL
+        // and surface an error rather than resurrecting the cache.
+        URL.revokeObjectURL(objectUrl);
+        throw new Error("Image evicted during fetch");
+      }
+      insertCache(storageId, objectUrl);
       return objectUrl;
     } finally {
-      inFlight.delete(storageId);
+      // Only clear the slot if it's still ours. Evict may have
+      // pre-cleared it, and a brand-new request may have replaced it;
+      // either way we must not clobber someone else's slot.
+      if (inFlight.get(storageId)?.token === token) {
+        inFlight.delete(storageId);
+      }
     }
   })();
-  inFlight.set(storageId, p);
-  return p;
+  inFlight.set(storageId, { promise, token });
+  return promise;
 }
 
 /**
  * Drops a cached URL (e.g. after the underlying image was deleted) so a
  * subsequent fetch goes back to storage. Safe to call when nothing is
  * cached.
+ *
+ * Also clears any in-flight entry for the same storageId so a pending
+ * fetch resolving after the evict cannot resurrect the cache with a
+ * stale URL. (See the identity check inside `getDecryptedImageUrl`.)
  */
 export function evictDecryptedImageUrl(storageId: string): void {
   const url = objectUrlCache.get(storageId);
@@ -246,4 +298,5 @@ export function evictDecryptedImageUrl(storageId: string): void {
     URL.revokeObjectURL(url);
     objectUrlCache.delete(storageId);
   }
+  inFlight.delete(storageId);
 }
