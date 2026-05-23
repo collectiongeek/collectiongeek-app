@@ -5,7 +5,8 @@
   "scripts": {
     "dev:convex": "convex dev",
     "deploy:convex": "convex deploy",
-    "seed:templates": "node scripts/seed-asset-templates.mjs"
+    "seed:templates": "node scripts/seed-asset-templates.mjs",
+    "admin:sweep-orphans": "node scripts/admin-sweep-orphans.mjs"
   },
   "dependencies": {
     "convex": "^1.39.1"

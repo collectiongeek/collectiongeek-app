@@ -28,6 +28,7 @@ import {
   decryptOptionalText,
   decryptText,
 } from "@/lib/encrypted-fields";
+import { EncryptedThumbnail } from "@/components/images/EncryptedThumbnail";
 
 interface DecryptedCollection {
   name: string;
@@ -59,6 +60,11 @@ function CollectionDetail({ id }: { id: string }) {
   const collectionId = id as Id<"collections">;
   const collection = useQuery(api.collections.getCollection, { collectionId });
   const assets = useQuery(api.assets.listAssetsInCollection, { collectionId });
+  const assetIds = assets?.map((a) => a._id as Id<"assets">) ?? [];
+  const primaries = useQuery(api.images.listPrimariesByAssetIds, { assetIds });
+  const primaryByAssetId = new Map(
+    (primaries ?? []).map((p) => [p.assetId as string, p])
+  );
 
   const decryptedCollection = useDecrypted(
     collection,
@@ -236,8 +242,14 @@ function CollectionDetail({ id }: { id: string }) {
               <div className="flex items-start justify-between gap-2">
                 <Link
                   to={`/assets/${asset._id}`}
-                  className="flex-1 min-w-0 no-underline text-inherit focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
+                  className="flex flex-1 min-w-0 gap-3 no-underline text-inherit focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
                 >
+                  <EncryptedThumbnail
+                    image={primaryByAssetId.get(asset._id) ?? null}
+                    size="sm"
+                    alt=""
+                  />
+                  <div className="min-w-0 flex-1">
                   <p className="font-medium leading-tight truncate">{asset.name}</p>
                   {asset.description && (
                     <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{asset.description}</p>
@@ -252,6 +264,7 @@ function CollectionDetail({ id }: { id: string }) {
                       ))}
                     </div>
                   )}
+                  </div>
                 </Link>
 
                 <AlertDialog open={deletingId === asset._id} onOpenChange={(open) => !open && setDeletingId(null)}>

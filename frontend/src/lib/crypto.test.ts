@@ -1,12 +1,16 @@
 import { describe, it, expect } from "vitest";
 import {
   createNewKeyBundle,
+  decryptBinary,
   decryptString,
+  encryptBinary,
   encryptString,
   generateRecoveryCode,
   isValidRecoveryCode,
   rotateRecoveryCode,
   unwrapDekWithRecoveryCode,
+  unwrapOwnerHeader,
+  wrapWithOwnerHeader,
 } from "./crypto";
 
 describe("crypto", () => {
@@ -113,5 +117,55 @@ describe("crypto", () => {
     // 32 chars but with confusables — should still parse because of normalization.
     const code = generateRecoveryCode();
     expect(isValidRecoveryCode(code.replace(/-/g, ""))).toBe(true);
+  });
+
+  it("encrypts and decrypts arbitrary binary data", async () => {
+    const bundle = await createNewKeyBundle();
+    const bytes = new Uint8Array(2048);
+    crypto.getRandomValues(bytes);
+    const ct = await encryptBinary(bytes, bundle.dek);
+    expect(ct.length).toBeGreaterThan(bytes.length); // iv + tag overhead
+    const round = await decryptBinary(ct, bundle.dek);
+    expect(round.length).toBe(bytes.length);
+    expect(Array.from(round)).toEqual(Array.from(bytes));
+  });
+
+  it("produces different binary ciphertexts for the same plaintext", async () => {
+    const bundle = await createNewKeyBundle();
+    const bytes = new Uint8Array([1, 2, 3, 4, 5]);
+    const a = await encryptBinary(bytes, bundle.dek);
+    const b = await encryptBinary(bytes, bundle.dek);
+    expect(Array.from(a)).not.toEqual(Array.from(b));
+  });
+
+  it("wraps and unwraps an owner header round-trip", async () => {
+    const body = new Uint8Array([10, 20, 30, 40]);
+    const userId = "user_01HW8K8N3X4Y5Z6";
+    const wrapped = wrapWithOwnerHeader(userId, body);
+    expect(wrapped[0]).toBe(0x43); // 'C'
+    expect(wrapped[1]).toBe(0x47); // 'G'
+    expect(wrapped[2]).toBe(0x45); // 'E'
+    expect(wrapped[3]).toBe(0x4b); // 'K'
+    const { workosUserId, body: unwrappedBody } = unwrapOwnerHeader(wrapped);
+    expect(workosUserId).toBe(userId);
+    expect(Array.from(unwrappedBody)).toEqual(Array.from(body));
+  });
+
+  it("rejects a blob missing the CGEK magic", () => {
+    const bogus = new Uint8Array([0, 0, 0, 0, 1, 1, 0xff]);
+    expect(() => unwrapOwnerHeader(bogus)).toThrow(/CGEK/);
+  });
+
+  it("survives an end-to-end image-style round trip", async () => {
+    const bundle = await createNewKeyBundle();
+    const userId = "user_round_trip";
+    const original = new Uint8Array(512);
+    crypto.getRandomValues(original);
+    const encrypted = await encryptBinary(original, bundle.dek);
+    const wireBytes = wrapWithOwnerHeader(userId, encrypted);
+    const { workosUserId, body } = unwrapOwnerHeader(wireBytes);
+    expect(workosUserId).toBe(userId);
+    const decrypted = await decryptBinary(body, bundle.dek);
+    expect(Array.from(decrypted)).toEqual(Array.from(original));
   });
 });

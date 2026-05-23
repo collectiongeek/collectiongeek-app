@@ -1,0 +1,19 @@
+/*
+ * Touch-primary devices get a chrome-free gallery: just the pictures.
+ * Navigation is via swipe-left/right, dismissal is via swipe-down — both
+ * are built-in yet-another-react-lightbox gestures. Hiding the toolbar
+ * (X), the prev/next arrows, and the counter matches the modern mobile
+ * photo-viewer convention.
+ *
+ * Targets `pointer: coarse` (primary pointer is touch) rather than a
+ * viewport-width breakpoint so a narrow desktop window keeps its chrome
+ * and a tablet in mouse mode does too.
+ */
+@media (pointer: coarse) {
+  .yarl__toolbar,
+  .yarl__navigation_prev,
+  .yarl__navigation_next,
+  .yarl__counter {
+    display: none !important;
+  }
+}

@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "convex/react";
 import { useAuth } from "@workos-inc/authkit-react";
 import { api } from "@convex-gen/api";
-import type { Doc } from "@convex-gen/dataModel";
+import type { Doc, Id } from "@convex-gen/dataModel";
 import { deleteAsset } from "@/lib/api";
 import { formatCents } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -37,11 +37,17 @@ import {
   decryptOptionalText,
   decryptText,
 } from "@/lib/encrypted-fields";
+import { EncryptedThumbnail } from "@/components/images/EncryptedThumbnail";
 
 export function AllAssetsPage() {
   const { getAccessToken } = useAuth();
   const navigate = useNavigate();
   const assets = useQuery(api.assets.listAllAssets);
+  const assetIds = assets?.map((a) => a._id as Id<"assets">) ?? [];
+  const primaries = useQuery(api.images.listPrimariesByAssetIds, { assetIds });
+  const primaryByAssetId = new Map(
+    (primaries ?? []).map((p) => [p.assetId, p])
+  );
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   async function handleDelete(id: string) {
@@ -94,6 +100,7 @@ export function AllAssetsPage() {
             <AssetCard
               key={asset._id}
               asset={asset}
+              primary={primaryByAssetId.get(asset._id) ?? null}
               isDeleting={deletingId === asset._id}
               onAskDelete={() => setDeletingId(asset._id)}
               onCloseDeletePrompt={() => setDeletingId(null)}
@@ -107,8 +114,16 @@ export function AllAssetsPage() {
   );
 }
 
+interface CardPrimaryImage {
+  _id: string;
+  storageId: string;
+  storageUrl: string | null;
+  metadataCiphertext: string;
+}
+
 interface CardProps {
   asset: Doc<"assets">;
+  primary: CardPrimaryImage | null;
   isDeleting: boolean;
   onAskDelete: () => void;
   onCloseDeletePrompt: () => void;
@@ -118,6 +133,7 @@ interface CardProps {
 
 function AssetCard({
   asset,
+  primary,
   isDeleting,
   onAskDelete,
   onCloseDeletePrompt,
@@ -139,8 +155,10 @@ function AssetCard({
       <div className="flex items-start justify-between gap-2">
         <Link
           to={`/assets/${asset._id}`}
-          className="flex-1 min-w-0 no-underline text-inherit focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
+          className="flex flex-1 min-w-0 gap-3 no-underline text-inherit focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
         >
+          <EncryptedThumbnail image={primary} size="sm" alt="" />
+          <div className="min-w-0 flex-1">
           <p className="font-medium leading-tight truncate">{name}</p>
           {decrypted?.description && (
             <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
@@ -161,6 +179,7 @@ function AssetCard({
               ))}
             </div>
           )}
+          </div>
         </Link>
 
         <AlertDialog

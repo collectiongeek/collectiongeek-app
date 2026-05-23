@@ -140,6 +140,28 @@ export default defineSchema({
     .index("by_asset", ["assetId"])
     .index("by_descriptor", ["descriptorId"]),
 
+  // Asset image attachments. Bytes live in Convex File Storage; this row
+  // holds the foreign keys plus an encrypted metadata blob carrying the
+  // viewport crop (zoom/x/y) and any other non-keying metadata. The image
+  // bytes themselves are prefixed with a small plaintext owner header
+  // (magic + WorkOS user ID) so an admin scanning storage can attribute
+  // an orphaned blob without joining the DB — content stays zero-knowledge.
+  // Capped at 6 rows per asset by the recordImage mutation.
+  assetImages: defineTable({
+    assetId: v.id("assets"),
+    userId: v.id("users"),
+    storageId: v.id("_storage"),
+    // Ciphertext of JSON { cropView: { x, y, zoom }, contentType, sizeBytes }.
+    metadataCiphertext: v.string(),
+    isPrimary: v.boolean(),
+    // 0..5, stable display order. Write-once on upload for v1.
+    position: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_asset", ["assetId"])
+    .index("by_user", ["userId"])
+    .index("by_storage", ["storageId"]),
+
   // ---------------------------------------------------------------------------
   // Public asset-type template catalog. Everything below this line is PLAINTEXT
   // — these rows are shared across all users. When a user "installs" a template

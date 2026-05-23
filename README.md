@@ -6,8 +6,10 @@
 | ------------------- | ------------------------------------------------ | ----------- |
 | Frontend            | React + Vite + TypeScript + Tailwind v4 + shadcn | `frontend/` |
 | Backend             | Go (Chi) — REST API                              | `backend/`  |
-| Database / Realtime | Convex                                           | `convex/`   |
+| Database / Realtime | Convex (queries, mutations, file storage)        | `convex/`   |
 | Auth                | WorkOS AuthKit                                   | —           |
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the request flow, the read/write asymmetry, the conventions catalog, and asset images as the canonical worked example.
 
 ## Prerequisites
 

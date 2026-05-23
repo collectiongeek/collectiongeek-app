@@ -140,6 +140,19 @@ export const updateUser = internalMutation({
 });
 
 async function cascadeDeleteUser(ctx: any, userId: any) {
+  // Sweep all asset image rows + their underlying storage blobs first.
+  // Doing this up front (instead of per-asset) matches the assetCollections
+  // pattern below and keeps the storage cleanup serial — Convex doesn't
+  // batch ctx.storage.delete calls the way it batches db.delete.
+  const images = await ctx.db
+    .query("assetImages")
+    .withIndex("by_user", (q: any) => q.eq("userId", userId))
+    .collect();
+  for (const image of images) {
+    await ctx.storage.delete(image.storageId);
+    await ctx.db.delete(image._id);
+  }
+
   // Sweep all asset↔collection join rows for this user up front. The by_user
   // index makes this a single query and avoids leaving orphans when assets or
   // collections are deleted below.

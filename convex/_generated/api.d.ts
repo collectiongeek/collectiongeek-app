@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as admin from "../admin.js";
 import type * as assetTypeTemplates from "../assetTypeTemplates.js";
 import type * as assetTypes from "../assetTypes.js";
 import type * as assets from "../assets.js";
@@ -15,6 +16,7 @@ import type * as auth from "../auth.js";
 import type * as collectionTypes from "../collectionTypes.js";
 import type * as collections from "../collections.js";
 import type * as http from "../http.js";
+import type * as images from "../images.js";
 import type * as users from "../users.js";
 
 import type {
@@ -24,6 +26,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  admin: typeof admin;
   assetTypeTemplates: typeof assetTypeTemplates;
   assetTypes: typeof assetTypes;
   assets: typeof assets;
@@ -31,6 +34,7 @@ declare const fullApi: ApiFromModules<{
   collectionTypes: typeof collectionTypes;
   collections: typeof collections;
   http: typeof http;
+  images: typeof images;
   users: typeof users;
 }>;
 
