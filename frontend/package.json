@@ -21,15 +21,19 @@
     "@radix-ui/react-separator": "^1.1.7",
     "@radix-ui/react-slot": "^1.2.3",
     "@workos-inc/authkit-react": "^0.16.1",
+    "browser-image-compression": "^2.0.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "convex": "^1.39.1",
     "lucide-react": "^0.511.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
+    "react-dropzone": "^15.0.0",
+    "react-easy-crop": "^5.5.7",
     "react-router-dom": "^7.6.0",
     "sonner": "^2.0.3",
-    "tailwind-merge": "^3.3.0"
+    "tailwind-merge": "^3.3.0",
+    "yet-another-react-lightbox": "^3.32.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

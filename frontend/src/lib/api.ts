@@ -292,3 +292,52 @@ export function removeAssetFromCollection(
     { method: "DELETE", token }
   );
 }
+
+// --- Asset Images ---
+
+// Step 1 of the upload handshake: ask the backend for a one-shot Convex
+// storage URL the client can POST the encrypted bytes to.
+export function requestImageUploadUrl(token: string, assetId: string) {
+  return request<{ uploadUrl: string }>(
+    `/api/v1/assets/${assetId}/images/upload-url`,
+    { method: "POST", token }
+  );
+}
+
+// Step 2 of the upload handshake: tell the backend that the bytes are in
+// place at `storageId` and that this row should be persisted. `setPrimary`
+// only matters when there are already other images on the asset — the
+// first image is always primary regardless.
+export function recordImage(
+  token: string,
+  assetId: string,
+  data: { storageId: string; metadataCiphertext: string; setPrimary?: boolean }
+) {
+  return request<{ id: string }>(`/api/v1/assets/${assetId}/images`, {
+    method: "POST",
+    token,
+    body: JSON.stringify(data),
+  });
+}
+
+// Patches an image row — used for both crop-view edits and the
+// "make this the primary" flip.
+export function updateImage(
+  token: string,
+  assetId: string,
+  imageId: string,
+  data: { metadataCiphertext?: string; setPrimary?: boolean }
+) {
+  return request<void>(`/api/v1/assets/${assetId}/images/${imageId}`, {
+    method: "PATCH",
+    token,
+    body: JSON.stringify(data),
+  });
+}
+
+export function deleteImage(token: string, assetId: string, imageId: string) {
+  return request<void>(`/api/v1/assets/${assetId}/images/${imageId}`, {
+    method: "DELETE",
+    token,
+  });
+}

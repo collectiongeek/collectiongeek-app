@@ -33,6 +33,9 @@
 
 // AES-GCM 12-byte IV is the standard NIST recommendation.
 const IV_BYTES = 12;
+// AES-GCM appends a 16-byte authentication tag, so any valid ciphertext
+// is at least this long (the plaintext itself can be 0 bytes).
+const GCM_TAG_BYTES = 16;
 // 16-byte salt for PBKDF2 KEK derivation — overkill but cheap.
 const SALT_BYTES = 16;
 // PBKDF2 iteration count. OWASP 2023 minimum is 600,000 for SHA-256.
@@ -221,7 +224,7 @@ async function decryptWrappedDek(
   const kek = await deriveKekFromCode(recoveryCode, salt);
 
   const wrapped = base64ToBytes(wrappedDekB64);
-  if (wrapped.length < IV_BYTES + 1) {
+  if (wrapped.length < IV_BYTES + GCM_TAG_BYTES) {
     throw new Error("Wrapped key is malformed");
   }
   const iv = wrapped.subarray(0, IV_BYTES);
@@ -309,7 +312,9 @@ export async function decryptString(
   dek: CryptoKey
 ): Promise<string> {
   const buf = base64ToBytes(ciphertext);
-  if (buf.length < IV_BYTES + 1) throw new Error("Ciphertext is malformed");
+  if (buf.length < IV_BYTES + GCM_TAG_BYTES) {
+    throw new Error("Ciphertext is malformed");
+  }
   const iv = buf.subarray(0, IV_BYTES);
   const ct = buf.subarray(IV_BYTES);
   const pt = await crypto.subtle.decrypt(
@@ -318,6 +323,105 @@ export async function decryptString(
     ct as BufferSource
   );
   return new TextDecoder().decode(pt);
+}
+
+// -- Binary encryption (for image bytes) -------------------------------
+
+/**
+ * Encrypts arbitrary bytes with the user's DEK. Returns raw bytes
+ * (iv || ciphertext+tag) so the caller can prepend its own envelope —
+ * see {@link wrapWithOwnerHeader}.
+ */
+export async function encryptBinary(
+  data: Uint8Array | ArrayBuffer,
+  dek: CryptoKey
+): Promise<Uint8Array> {
+  const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
+  const iv = crypto.getRandomValues(new Uint8Array(IV_BYTES));
+  const ct = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv: iv as BufferSource },
+    dek,
+    bytes as BufferSource
+  );
+  const out = new Uint8Array(IV_BYTES + ct.byteLength);
+  out.set(iv, 0);
+  out.set(new Uint8Array(ct), IV_BYTES);
+  return out;
+}
+
+/** Inverse of {@link encryptBinary}. */
+export async function decryptBinary(
+  data: Uint8Array,
+  dek: CryptoKey
+): Promise<Uint8Array> {
+  if (data.length < IV_BYTES + GCM_TAG_BYTES) {
+    throw new Error("Ciphertext is malformed");
+  }
+  const iv = data.subarray(0, IV_BYTES);
+  const ct = data.subarray(IV_BYTES);
+  const pt = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: iv as BufferSource },
+    dek,
+    ct as BufferSource
+  );
+  return new Uint8Array(pt);
+}
+
+// -- Owner-tagged image envelope ---------------------------------------
+//
+// Image bytes on storage have this prefix so an admin sweeping orphaned
+// blobs can attribute them to a user without joining against the DB:
+//
+//   [CGEK][0x01][uLen][userId ASCII][encrypted body…]
+//    4 B   1 B   1 B    uLen bytes   variable
+//
+// This is the only place where any plaintext leaks alongside encrypted
+// content — see plan/docs. The server already observes ownership via
+// authenticated traffic, so it doesn't reveal new information.
+
+const OWNER_HEADER_MAGIC = new Uint8Array([0x43, 0x47, 0x45, 0x4b]); // "CGEK"
+const OWNER_HEADER_VERSION = 0x01;
+
+export function wrapWithOwnerHeader(
+  workosUserId: string,
+  encryptedBody: Uint8Array
+): Uint8Array {
+  const idBytes = new TextEncoder().encode(workosUserId);
+  if (idBytes.length === 0 || idBytes.length > 255) {
+    throw new Error("WorkOS user id is empty or too long");
+  }
+  const headerLen = OWNER_HEADER_MAGIC.length + 1 + 1 + idBytes.length;
+  const out = new Uint8Array(headerLen + encryptedBody.length);
+  out.set(OWNER_HEADER_MAGIC, 0);
+  out[OWNER_HEADER_MAGIC.length] = OWNER_HEADER_VERSION;
+  out[OWNER_HEADER_MAGIC.length + 1] = idBytes.length;
+  out.set(idBytes, OWNER_HEADER_MAGIC.length + 2);
+  out.set(encryptedBody, headerLen);
+  return out;
+}
+
+export interface OwnerHeader {
+  workosUserId: string;
+  body: Uint8Array;
+}
+
+export function unwrapOwnerHeader(blob: Uint8Array): OwnerHeader {
+  const fixed = OWNER_HEADER_MAGIC.length + 2;
+  if (blob.length < fixed) throw new Error("Blob too short for owner header");
+  for (let i = 0; i < OWNER_HEADER_MAGIC.length; i++) {
+    if (blob[i] !== OWNER_HEADER_MAGIC[i]) {
+      throw new Error("Missing CGEK magic in blob header");
+    }
+  }
+  if (blob[OWNER_HEADER_MAGIC.length] !== OWNER_HEADER_VERSION) {
+    throw new Error("Unsupported owner-header version");
+  }
+  const uLen = blob[OWNER_HEADER_MAGIC.length + 1];
+  if (blob.length < fixed + uLen) throw new Error("Truncated owner header");
+  const workosUserId = new TextDecoder().decode(
+    blob.subarray(fixed, fixed + uLen)
+  );
+  return { workosUserId, body: blob.subarray(fixed + uLen) };
 }
 
 // -- IndexedDB key storage ---------------------------------------------

@@ -24,6 +24,7 @@ import {
   decryptOptionalText,
   decryptText,
 } from "@/lib/encrypted-fields";
+import { AssetImagesManager } from "@/components/images/AssetImagesManager";
 
 function formatDescriptorValue(
   value: string,
@@ -203,6 +204,10 @@ function AssetDetail({ id }: { id: string }) {
           ))}
         </div>
       )}
+
+      <Separator />
+
+      <AssetImagesManager assetId={id} />
 
       <Separator />
 

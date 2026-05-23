@@ -39,6 +39,11 @@ export type EncryptionStatus =
 interface EncryptionContextValue {
   status: EncryptionStatus;
   dek: CryptoKey | null;
+  /** The user's WorkOS id, mirrored from the provider prop. Exposed so
+   *  callers that need to stamp content with an owner identifier (image
+   *  uploads, audit logs) can read it from the same context as the DEK
+   *  instead of plumbing it through separately. */
+  workosUserId: string | null;
   /** Called from RecoveryCodeSetup once the user confirms they've saved
    *  their recovery code. Pushes the wrapped DEK + salt to the server and
    *  stores the DEK in IndexedDB on this device. Splitting "generate" from
@@ -210,6 +215,7 @@ export function EncryptionProvider({
       value={{
         status,
         dek,
+        workosUserId,
         commitNewKey,
         unlockWithRecoveryCode,
         rotateRecoveryCode,

@@ -53,6 +53,7 @@ func main() {
 	collectionTypesH := handlers.NewCollectionTypesHandler(convex)
 	collectionsH := handlers.NewCollectionsHandler(convex)
 	assetsH := handlers.NewAssetsHandler(convex)
+	imagesH := handlers.NewImagesHandler(convex)
 
 	r := chi.NewRouter()
 
@@ -68,7 +69,7 @@ func main() {
 	}
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   allowedOrigins,
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
 		ExposedHeaders:   []string{"Link"},
 		AllowCredentials: true,
@@ -122,6 +123,14 @@ func main() {
 		r.Delete("/assets/{id}", assetsH.DeleteAsset)
 		r.Post("/assets/{id}/collections", assetsH.AddToCollection)
 		r.Delete("/assets/{id}/collections/{collectionId}", assetsH.RemoveFromCollection)
+
+		// Asset images. Bytes go directly to Convex File Storage; these
+		// endpoints mediate the URL handshake, persist metadata rows, and
+		// gate ownership / 6-image cap.
+		r.Post("/assets/{assetId}/images/upload-url", imagesH.RequestUploadURL)
+		r.Post("/assets/{assetId}/images", imagesH.RecordImage)
+		r.Patch("/assets/{assetId}/images/{imageId}", imagesH.UpdateImage)
+		r.Delete("/assets/{assetId}/images/{imageId}", imagesH.DeleteImage)
 	})
 
 	port := os.Getenv("PORT")

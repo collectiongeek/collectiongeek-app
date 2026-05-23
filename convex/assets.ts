@@ -341,6 +341,15 @@ export const deleteAsset = internalMutation({
       .collect();
     await Promise.all(values.map((dv) => ctx.db.delete(dv._id)));
 
+    const images = await ctx.db
+      .query("assetImages")
+      .withIndex("by_asset", (q) => q.eq("assetId", assetId))
+      .collect();
+    for (const image of images) {
+      await ctx.storage.delete(image.storageId);
+      await ctx.db.delete(image._id);
+    }
+
     await ctx.db.delete(assetId);
   },
 });
