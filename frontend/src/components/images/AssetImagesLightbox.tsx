@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Lightbox, { type SlideImage } from "yet-another-react-lightbox";
 import Counter from "yet-another-react-lightbox/plugins/counter";
+import Zoom from "yet-another-react-lightbox/plugins/zoom";
 import "yet-another-react-lightbox/styles.css";
 import "yet-another-react-lightbox/plugins/counter.css";
 import "./AssetImagesLightbox.css";
@@ -101,8 +102,12 @@ export function AssetImagesLightbox({
       close={onClose}
       slides={lightboxSlides}
       index={startIndex}
-      plugins={[Counter]}
+      plugins={[Counter, Zoom]}
       counter={{ container: { style: { top: 8, left: 8 } } }}
+      // pinchZoomV4 enables the v4 pinch-zoom implementation — smoother
+      // on touch devices than the legacy gesture. scrollToZoom gives
+      // trackpad/mouse users a matching affordance on desktop.
+      zoom={{ pinchZoomV4: true, scrollToZoom: true }}
       // Disable controller animations beyond defaults — keeps the
       // "discreet" feel the spec calls for.
       controller={{ closeOnBackdropClick: true, closeOnPullDown: true }}
@@ -128,20 +133,11 @@ export function AssetImagesLightbox({
               </div>
             );
           }
-          // Display the **uncropped** decrypted image. The library
-          // handles fit-to-viewport sizing.
-          return (
-            <img
-              src={state}
-              alt=""
-              style={{
-                maxWidth: "100%",
-                maxHeight: "100%",
-                objectFit: "contain",
-              }}
-              draggable={false}
-            />
-          );
+          // Defer to the library's default image renderer for resolved
+          // slides — that's the render path the Zoom plugin instruments
+          // for pinch/double-tap/scroll-to-zoom. A custom <img> here
+          // would render fine but wouldn't be zoomable.
+          return undefined;
         },
         // Hide prev/next chrome when there's only one image — keeps the
         // single-image case from looking dead-buttoned.
