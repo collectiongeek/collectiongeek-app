@@ -1,6 +1,10 @@
 import { v } from "convex/values";
 import { internalMutation, query } from "./_generated/server";
 import { getUserFromIdentity } from "./auth";
+import {
+  assertCiphertextShape,
+  assertOptionalCiphertextShape,
+} from "./ciphertext";
 
 // Max image attachments per asset. Enforced authoritatively by recordImage
 // (the one-shot upload URL is not enough — between issuing it and the
@@ -132,6 +136,8 @@ export const recordImage = internalMutation({
     ctx,
     { workosUserId, assetId, storageId, metadataCiphertext, setPrimary }
   ) => {
+    assertCiphertextShape(metadataCiphertext, "metadataCiphertext");
+
     const user = await resolveUser(ctx, workosUserId);
     await assertAssetOwned(ctx, assetId, user._id);
 
@@ -200,6 +206,8 @@ export const updateImage = internalMutation({
     ctx,
     { workosUserId, assetId, imageId, metadataCiphertext, setPrimary }
   ) => {
+    assertOptionalCiphertextShape(metadataCiphertext, "metadataCiphertext");
+
     const user = await resolveUser(ctx, workosUserId);
     await assertAssetOwned(ctx, assetId, user._id);
 

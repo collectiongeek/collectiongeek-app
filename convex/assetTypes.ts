@@ -1,6 +1,20 @@
 import { v } from "convex/values";
 import { internalMutation, query } from "./_generated/server";
 import { getUserFromIdentity } from "./auth";
+import {
+  assertCiphertextShape,
+  assertOptionalCiphertextShape,
+} from "./ciphertext";
+
+// Validates the ciphertext fields on a descriptor input. dataType/required/
+// order/sourceKey are structural plaintext and aren't checked here.
+function assertDescriptorCiphertext(
+  d: { name: string; options?: string },
+  path: string
+) {
+  assertCiphertextShape(d.name, `${path}.name`);
+  assertOptionalCiphertextShape(d.options, `${path}.options`);
+}
 
 // `name` is ciphertext; `options` is a single ciphertext blob containing the
 // JSON-stringified array (we encrypt once per descriptor, not per option).
@@ -79,6 +93,14 @@ export const createAssetType = internalMutation({
       sourceTemplateVersion,
     }
   ) => {
+    assertCiphertextShape(name, "name");
+    assertOptionalCiphertextShape(description, "description");
+    if (descriptors) {
+      descriptors.forEach((d, i) =>
+        assertDescriptorCiphertext(d, `descriptors[${i}]`)
+      );
+    }
+
     const user = await ctx.db
       .query("users")
       .withIndex("by_workos_id", (q) => q.eq("workosUserId", workosUserId))
@@ -144,6 +166,14 @@ export const updateAssetType = internalMutation({
     ctx,
     { workosUserId, assetTypeId, descriptors, ...fields }
   ) => {
+    assertOptionalCiphertextShape(fields.name, "name");
+    assertOptionalCiphertextShape(fields.description, "description");
+    if (descriptors) {
+      descriptors.forEach((d, i) =>
+        assertDescriptorCiphertext(d, `descriptors[${i}]`)
+      );
+    }
+
     const user = await ctx.db
       .query("users")
       .withIndex("by_workos_id", (q) => q.eq("workosUserId", workosUserId))

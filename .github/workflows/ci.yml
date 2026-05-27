@@ -27,6 +27,7 @@ jobs:
               - 'backend/**'
             frontend:
               - 'frontend/**'
+              - 'convex/**'
 
   # ---------------------------------------------------------
   # Backend: Go lint + test
@@ -100,6 +101,16 @@ jobs:
 
       - name: Build (verify it compiles)
         run: npm run build
+
+      # Convex functions aren't typechecked by the frontend build (they live
+      # outside frontend/src). Run the root-level tsconfig against convex/
+      # so a regression in server-side code fails CI here instead of at
+      # `convex deploy` time. Install deps at the root for tsc + @types/node.
+      - name: Typecheck Convex
+        working-directory: ${{ github.workspace }}
+        run: |
+          npm ci
+          npm run typecheck:convex
 
   # ---------------------------------------------------------
   # Notification on failure

@@ -1,6 +1,10 @@
 import { v } from "convex/values";
 import { internalMutation, query } from "./_generated/server";
 import { getUserFromIdentity } from "./auth";
+import {
+  assertCiphertextShape,
+  assertOptionalCiphertextShape,
+} from "./ciphertext";
 
 // User-content fields (name, description, dateAcquired, purchasedValue,
 // marketValue, tags) are opaque ciphertext from the server's point of view —
@@ -131,6 +135,18 @@ export const createAsset = internalMutation({
     ctx,
     { workosUserId, collectionIds, descriptorValues, assetTypeId, ...assetData }
   ) => {
+    assertCiphertextShape(assetData.name, "name");
+    assertOptionalCiphertextShape(assetData.description, "description");
+    assertOptionalCiphertextShape(assetData.dateAcquired, "dateAcquired");
+    assertOptionalCiphertextShape(assetData.purchasedValue, "purchasedValue");
+    assertOptionalCiphertextShape(assetData.marketValue, "marketValue");
+    assertOptionalCiphertextShape(assetData.tags, "tags");
+    if (descriptorValues) {
+      for (const dv of descriptorValues) {
+        assertCiphertextShape(dv.value, "descriptorValues[].value");
+      }
+    }
+
     const user = await ctx.db
       .query("users")
       .withIndex("by_workos_id", (q) => q.eq("workosUserId", workosUserId))
@@ -224,6 +240,18 @@ export const updateAsset = internalMutation({
       ...fields
     }
   ) => {
+    assertOptionalCiphertextShape(fields.name, "name");
+    assertOptionalCiphertextShape(fields.description, "description");
+    assertOptionalCiphertextShape(fields.dateAcquired, "dateAcquired");
+    assertOptionalCiphertextShape(fields.purchasedValue, "purchasedValue");
+    assertOptionalCiphertextShape(fields.marketValue, "marketValue");
+    assertOptionalCiphertextShape(fields.tags, "tags");
+    if (descriptorValues) {
+      for (const dv of descriptorValues) {
+        assertCiphertextShape(dv.value, "descriptorValues[].value");
+      }
+    }
+
     const user = await ctx.db
       .query("users")
       .withIndex("by_workos_id", (q) => q.eq("workosUserId", workosUserId))

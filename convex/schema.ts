@@ -30,10 +30,10 @@ export default defineSchema({
   // checks moved to the client. Names removed from indexes too — they're
   // ciphertext and can't be sorted/filtered server-side.
   //
-  // TODO (encryption follow-up): add a shared ciphertext-shape check
-  // (base64 + min/max length) in the write-path mutations so a buggy or
-  // stale client can't persist plaintext into these fields. Shape-only —
-  // doesn't compromise ZK. Tracked alongside CSP/SRI/perf in the followups.
+  // Every write-path mutation that targets one of these fields calls
+  // `assertCiphertextShape` from ./ciphertext.ts as a shape-only guard
+  // (base64 + min/max length) so a buggy or stale client can't persist
+  // plaintext. Shape checks don't compromise the zero-knowledge story.
 
   assetTypes: defineTable({
     userId: v.id("users"),

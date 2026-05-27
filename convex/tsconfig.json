@@ -1,0 +1,34 @@
+{
+  /* TypeScript project config for Convex functions. Picked up by
+   * `npx convex codegen` / `convex dev` / `convex deploy` so server code is
+   * typechecked at deploy time. Mirrors the Convex CLI's --init template.
+   */
+  "compilerOptions": {
+    "allowJs": true,
+    "strict": true,
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "skipLibCheck": true,
+    "allowSyntheticDefaultImports": true,
+    /* Pulls in @types/node so process.env (used by auth.config.ts and
+     * http.ts) typechecks. Convex's runtime injects env vars even though
+     * it's not Node — these types are only for the typechecker. */
+    "types": ["node"],
+
+    /* Required by Convex */
+    "target": "ESNext",
+    "lib": ["ES2023", "dom"],
+    "forceConsistentCasingInFileNames": true,
+    "module": "ESNext",
+    "isolatedModules": true,
+    "noEmit": true
+  },
+  "include": ["./**/*"],
+  /* Exclude:
+   *   _generated — Convex-generated bindings (intentionally not typechecked
+   *     against this config; the rest of the tree consumes them).
+   *   *.test.ts — vitest-only files; importing `vitest` would fail to
+   *     resolve under Convex's runtime types. They're picked up by the
+   *     frontend vitest config instead. */
+  "exclude": ["./_generated", "./**/*.test.ts"]
+}
