@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import sri from "vite-plugin-sri4";
@@ -64,6 +64,13 @@ export default defineConfig({
       // (e.g. convex/_generated/api.js sits outside the frontend directory).
       "convex": path.resolve(__dirname, "./node_modules/convex"),
     },
+  },
+  test: {
+    // Pick up tests under src/ (frontend) AND the sibling convex/ directory
+    // so server-side helpers (e.g. convex/ciphertext.ts) can be tested by the
+    // same vitest invocation. The convex helpers are pure TS — no Convex
+    // runtime needed — so they run fine in the node-default env.
+    include: ["src/**/*.test.{ts,tsx}", "../convex/**/*.test.ts"],
   },
   build: {
     rollupOptions: {

@@ -13,6 +13,7 @@ import type * as assetTypeTemplates from "../assetTypeTemplates.js";
 import type * as assetTypes from "../assetTypes.js";
 import type * as assets from "../assets.js";
 import type * as auth from "../auth.js";
+import type * as ciphertext from "../ciphertext.js";
 import type * as collectionTypes from "../collectionTypes.js";
 import type * as collections from "../collections.js";
 import type * as http from "../http.js";
@@ -31,6 +32,7 @@ declare const fullApi: ApiFromModules<{
   assetTypes: typeof assetTypes;
   assets: typeof assets;
   auth: typeof auth;
+  ciphertext: typeof ciphertext;
   collectionTypes: typeof collectionTypes;
   collections: typeof collections;
   http: typeof http;

@@ -5,6 +5,7 @@
   "scripts": {
     "dev:convex": "convex dev",
     "deploy:convex": "convex deploy",
+    "typecheck:convex": "tsc --noEmit -p convex/tsconfig.json",
     "seed:templates": "node scripts/seed-asset-templates.mjs",
     "admin:sweep-orphans": "node scripts/admin-sweep-orphans.mjs"
   },
@@ -13,5 +14,9 @@
   },
   "overrides": {
     "ws": "^8.20.1"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "typescript": "^6.0.3"
   }
 }

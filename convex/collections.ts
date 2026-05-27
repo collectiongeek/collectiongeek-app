@@ -1,6 +1,10 @@
 import { v } from "convex/values";
 import { internalMutation, query } from "./_generated/server";
 import { getUserFromIdentity } from "./auth";
+import {
+  assertCiphertextShape,
+  assertOptionalCiphertextShape,
+} from "./ciphertext";
 
 export const listCollections = query({
   handler: async (ctx) => {
@@ -79,6 +83,9 @@ export const createCollection = internalMutation({
     ctx,
     { workosUserId, name, description, collectionTypeId }
   ) => {
+    assertCiphertextShape(name, "name");
+    assertOptionalCiphertextShape(description, "description");
+
     const user = await ctx.db
       .query("users")
       .withIndex("by_workos_id", (q) => q.eq("workosUserId", workosUserId))
@@ -112,6 +119,9 @@ export const updateCollection = internalMutation({
     collectionTypeId: v.optional(v.id("collectionTypes")),
   },
   handler: async (ctx, { workosUserId, collectionId, ...fields }) => {
+    assertOptionalCiphertextShape(fields.name, "name");
+    assertOptionalCiphertextShape(fields.description, "description");
+
     const user = await ctx.db
       .query("users")
       .withIndex("by_workos_id", (q) => q.eq("workosUserId", workosUserId))

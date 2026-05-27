@@ -98,7 +98,10 @@ These are the project-wide patterns. New code should follow them; deviations sho
 
 ### 1. Encrypted field shape
 
-User content fields use `v.string()` in [convex/schema.ts](convex/schema.ts) and carry a `// ciphertext` annotation. The server cannot validate length or format on these — those checks live on the client _before_ encryption. There's a deferred [ciphertext-shape validator TODO](convex/schema.ts) ([SECURITY.md](SECURITY.md) covers why it's deferred); when it lands, every write-path mutation will gain a `assertCiphertextShape(v)` call.
+User content fields use `v.string()` in [convex/schema.ts](convex/schema.ts) and carry a `// ciphertext` annotation. Validation splits into two layers:
+
+- **Client, pre-encryption:** semantic/content checks — what "name" or "tags" actually means, max plaintext length per field, etc. The server can't run these because it never sees plaintext.
+- **Server, write-path:** every mutation calls [`assertCiphertextShape`](convex/ciphertext.ts) — base64 alphabet, length above the AES-GCM envelope minimum, length below a 64 KiB ceiling. Shape-only; the server still can't decrypt, so the zero-knowledge story is preserved. The guard's job is to reject obvious garbage (plaintext, runaway-sized blobs) from a buggy or stale client.
 
 ### 2. Specific-substring error mapping
 
