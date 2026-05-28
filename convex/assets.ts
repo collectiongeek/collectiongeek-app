@@ -110,9 +110,12 @@ export const createAsset = internalMutation({
     name: v.string(),
     description: v.optional(v.string()),
     dateAcquired: v.optional(v.string()),
+    dateSold: v.optional(v.string()),
     purchasedValue: v.optional(v.string()),
     marketValue: v.optional(v.string()),
     tags: v.optional(v.string()),
+    kind: v.optional(v.string()),
+    status: v.optional(v.string()),
     collectionIds: v.optional(v.array(v.id("collections"))),
     descriptorValues: v.optional(v.array(descriptorValueInput)),
   },
@@ -123,9 +126,12 @@ export const createAsset = internalMutation({
     assertCiphertextShape(assetData.name, "name");
     assertOptionalCiphertextShape(assetData.description, "description");
     assertOptionalCiphertextShape(assetData.dateAcquired, "dateAcquired");
+    assertOptionalCiphertextShape(assetData.dateSold, "dateSold");
     assertOptionalCiphertextShape(assetData.purchasedValue, "purchasedValue");
     assertOptionalCiphertextShape(assetData.marketValue, "marketValue");
     assertOptionalCiphertextShape(assetData.tags, "tags");
+    assertOptionalCiphertextShape(assetData.kind, "kind");
+    assertOptionalCiphertextShape(assetData.status, "status");
     if (descriptorValues) {
       for (const dv of descriptorValues) {
         assertCiphertextShape(dv.value, "descriptorValues[].value");
@@ -207,10 +213,14 @@ export const updateAsset = internalMutation({
     assetTypeId: v.optional(v.union(v.id("assetTypes"), v.null())),
     name: v.optional(v.string()),
     description: v.optional(v.string()),
-    dateAcquired: v.optional(v.string()),
+    // null = clear, undefined = leave unchanged. Same convention as assetTypeId.
+    dateAcquired: v.optional(v.union(v.string(), v.null())),
+    dateSold: v.optional(v.union(v.string(), v.null())),
     purchasedValue: v.optional(v.string()),
     marketValue: v.optional(v.string()),
     tags: v.optional(v.string()),
+    kind: v.optional(v.union(v.string(), v.null())),
+    status: v.optional(v.union(v.string(), v.null())),
     collectionIds: v.optional(v.array(v.id("collections"))),
     descriptorValues: v.optional(v.array(descriptorValueInput)),
   },
@@ -222,15 +232,26 @@ export const updateAsset = internalMutation({
       collectionIds,
       descriptorValues,
       assetTypeId,
+      dateAcquired,
+      dateSold,
+      kind,
+      status,
       ...fields
     }
   ) => {
     assertOptionalCiphertextShape(fields.name, "name");
     assertOptionalCiphertextShape(fields.description, "description");
-    assertOptionalCiphertextShape(fields.dateAcquired, "dateAcquired");
     assertOptionalCiphertextShape(fields.purchasedValue, "purchasedValue");
     assertOptionalCiphertextShape(fields.marketValue, "marketValue");
     assertOptionalCiphertextShape(fields.tags, "tags");
+    // null is the explicit "clear" signal for these — skip the shape check
+    // when it's present, otherwise validate as ciphertext.
+    if (dateAcquired !== null)
+      assertOptionalCiphertextShape(dateAcquired, "dateAcquired");
+    if (dateSold !== null)
+      assertOptionalCiphertextShape(dateSold, "dateSold");
+    if (kind !== null) assertOptionalCiphertextShape(kind, "kind");
+    if (status !== null) assertOptionalCiphertextShape(status, "status");
     if (descriptorValues) {
       for (const dv of descriptorValues) {
         assertCiphertextShape(dv.value, "descriptorValues[].value");
@@ -263,6 +284,15 @@ export const updateAsset = internalMutation({
       // `assetTypeId: undefined` in a patch clears the optional field;
       // omitting the key entirely leaves it unchanged.
       ...(assetTypeId !== undefined ? { assetTypeId: newType } : {}),
+      // null → clear (becomes undefined in patch), undefined → leave alone.
+      ...(dateAcquired !== undefined
+        ? { dateAcquired: dateAcquired ?? undefined }
+        : {}),
+      ...(dateSold !== undefined
+        ? { dateSold: dateSold ?? undefined }
+        : {}),
+      ...(kind !== undefined ? { kind: kind ?? undefined } : {}),
+      ...(status !== undefined ? { status: status ?? undefined } : {}),
       updatedAt: Date.now(),
     });
 

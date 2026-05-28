@@ -286,9 +286,13 @@ export interface AssetPayload {
   name: string;
   description?: string;
   dateAcquired?: string;
+  dateSold?: string;
   purchasedValue?: string;
   marketValue?: string;
   tags?: string;
+  // Ciphertext of the enum value, or "" in an edit payload to clear the field.
+  kind?: string;
+  status?: string;
   collectionIds?: string[];
   descriptorValues?: DescriptorValueInput[];
 }

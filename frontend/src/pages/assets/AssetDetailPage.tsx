@@ -35,13 +35,28 @@ function formatDescriptorValue(
   return value;
 }
 
+const KIND_LABELS: Record<string, string> = {
+  digital: "Digital",
+  physical: "Physical",
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  owned: "Owned",
+  wished: "Wished",
+  for_sale: "For sale",
+  sold: "Sold",
+};
+
 interface DecryptedDetail {
   name: string;
   description?: string;
   dateAcquired?: string;
+  dateSold?: string;
   purchasedValue?: number;
   marketValue?: number;
   tags?: string[];
+  kind?: string;
+  status?: string;
   assetTypeName?: string;
   descriptors: Array<{
     _id: string;
@@ -76,9 +91,12 @@ function AssetDetail({ id }: { id: string }) {
       name: await decryptText(raw.name, dek),
       description: await decryptOptionalText(raw.description, dek),
       dateAcquired: await decryptOptionalText(raw.dateAcquired, dek),
+      dateSold: await decryptOptionalText(raw.dateSold, dek),
       purchasedValue: await decryptOptionalNumber(raw.purchasedValue, dek),
       marketValue: await decryptOptionalNumber(raw.marketValue, dek),
       tags: await decryptOptionalArray(raw.tags, dek),
+      kind: await decryptOptionalText(raw.kind, dek),
+      status: await decryptOptionalText(raw.status, dek),
       assetTypeName: raw.assetType
         ? await decryptText(raw.assetType.name, dek)
         : undefined,
@@ -212,10 +230,32 @@ function AssetDetail({ id }: { id: string }) {
       <Separator />
 
       <dl className="grid grid-cols-1 gap-x-8 gap-y-4 text-sm sm:grid-cols-2">
+        {decrypted.kind && (
+          <div>
+            <dt className="text-muted-foreground">Asset kind</dt>
+            <dd className="font-medium mt-0.5 text-base">
+              {KIND_LABELS[decrypted.kind] ?? decrypted.kind}
+            </dd>
+          </div>
+        )}
+        {decrypted.status && (
+          <div>
+            <dt className="text-muted-foreground">Status</dt>
+            <dd className="font-medium mt-0.5 text-base">
+              {STATUS_LABELS[decrypted.status] ?? decrypted.status}
+            </dd>
+          </div>
+        )}
         {decrypted.dateAcquired && (
           <div>
             <dt className="text-muted-foreground">Date acquired</dt>
             <dd className="font-medium mt-0.5 text-base">{formatDate(decrypted.dateAcquired)}</dd>
+          </div>
+        )}
+        {decrypted.dateSold && (
+          <div>
+            <dt className="text-muted-foreground">Date sold</dt>
+            <dd className="font-medium mt-0.5 text-base">{formatDate(decrypted.dateSold)}</dd>
           </div>
         )}
         {decrypted.purchasedValue !== undefined && (

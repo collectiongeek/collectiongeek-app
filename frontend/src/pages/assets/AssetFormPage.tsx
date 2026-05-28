@@ -32,22 +32,42 @@ import {
 
 type DescriptorDoc = Doc<"assetTypeDescriptors">;
 
+// Underlying stored kind/status values. The form holds the same strings, with
+// "" representing "Not set" (no field stored / cleared on edit).
+const KIND_OPTIONS = [
+  { value: "digital", label: "Digital" },
+  { value: "physical", label: "Physical" },
+] as const;
+
+const STATUS_OPTIONS = [
+  { value: "owned", label: "Owned" },
+  { value: "wished", label: "Wished" },
+  { value: "for_sale", label: "For sale" },
+  { value: "sold", label: "Sold" },
+] as const;
+
 interface BasicForm {
   name: string;
   description: string;
   dateAcquired: string;
+  dateSold: string;
   purchasedValue: string;
   marketValue: string;
   tags: string;
+  kind: string;
+  status: string;
 }
 
 const EMPTY_FORM: BasicForm = {
   name: "",
   description: "",
   dateAcquired: "",
+  dateSold: "",
   purchasedValue: "",
   marketValue: "",
   tags: "",
+  kind: "",
+  status: "",
 };
 
 function parseDollarsToCents(s: string): number | undefined {
@@ -134,6 +154,8 @@ function EditAssetLoader({ id }: { id: string }) {
             (await decryptOptionalText(raw.description, dek)) ?? "",
           dateAcquired:
             (await decryptOptionalText(raw.dateAcquired, dek)) ?? "",
+          dateSold:
+            (await decryptOptionalText(raw.dateSold, dek)) ?? "",
           purchasedValue:
             purchasedCents !== undefined
               ? (purchasedCents / 100).toFixed(2)
@@ -141,6 +163,8 @@ function EditAssetLoader({ id }: { id: string }) {
           marketValue:
             marketCents !== undefined ? (marketCents / 100).toFixed(2) : "",
           tags: tagsArr ? tagsArr.join(", ") : "",
+          kind: (await decryptOptionalText(raw.kind, dek)) ?? "",
+          status: (await decryptOptionalText(raw.status, dek)) ?? "",
         },
         assetTypeId: raw.assetTypeId ?? "",
         collectionIds: raw.collections.map((c) => c._id),
@@ -321,6 +345,26 @@ function AssetForm({
             )
           : [];
 
+      // Same edit/create asymmetry as assetTypeId: in edit mode an empty
+      // string tells the backend to clear the field; in create mode it
+      // skips the field entirely.
+      const dateAcquiredCipher = await encryptOptionalText(
+        form.dateAcquired || undefined,
+        dek
+      );
+      const dateSoldCipher = await encryptOptionalText(
+        form.dateSold || undefined,
+        dek
+      );
+      const kindCipher = await encryptOptionalText(
+        form.kind || undefined,
+        dek
+      );
+      const statusCipher = await encryptOptionalText(
+        form.status || undefined,
+        dek
+      );
+
       const payload = {
         // Pass empty string through in edit mode so the backend can interpret
         // it as "clear the asset type" (it translates "" → null for Convex).
@@ -331,10 +375,9 @@ function AssetForm({
           form.description.trim() || undefined,
           dek
         ),
-        dateAcquired: await encryptOptionalText(
-          form.dateAcquired || undefined,
-          dek
-        ),
+        dateAcquired:
+          mode === "edit" ? (dateAcquiredCipher ?? "") : dateAcquiredCipher,
+        dateSold: mode === "edit" ? (dateSoldCipher ?? "") : dateSoldCipher,
         purchasedValue: await encryptOptionalNumber(
           parseDollarsToCents(form.purchasedValue),
           dek
@@ -344,6 +387,8 @@ function AssetForm({
           dek
         ),
         tags: await encryptOptionalArray(tags.length ? tags : undefined, dek),
+        kind: mode === "edit" ? (kindCipher ?? "") : kindCipher,
+        status: mode === "edit" ? (statusCipher ?? "") : statusCipher,
         collectionIds: Array.from(selectedCollections),
         descriptorValues: descriptorValuesPayload,
       };
@@ -426,6 +471,40 @@ function AssetForm({
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
+                <Label htmlFor="kind">Asset kind</Label>
+                <select
+                  id="kind"
+                  value={form.kind}
+                  onChange={(e) => set("kind", e.target.value)}
+                  className={nativeSelectClasses}
+                >
+                  <option value="">Not set</option>
+                  {KIND_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="status">Status</Label>
+                <select
+                  id="status"
+                  value={form.status}
+                  onChange={(e) => set("status", e.target.value)}
+                  className={nativeSelectClasses}
+                >
+                  <option value="">Not set</option>
+                  {STATUS_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
                 <Label htmlFor="dateAcquired">Date acquired</Label>
                 <Input
                   id="dateAcquired"
@@ -435,14 +514,23 @@ function AssetForm({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="tags">Tags (comma-separated)</Label>
+                <Label htmlFor="dateSold">Date sold</Label>
                 <Input
-                  id="tags"
-                  value={form.tags}
-                  onChange={(e) => set("tags", e.target.value)}
-                  placeholder="silver, morgan, us-mint"
+                  id="dateSold"
+                  type="date"
+                  value={form.dateSold}
+                  onChange={(e) => set("dateSold", e.target.value)}
                 />
               </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="tags">Tags (comma-separated)</Label>
+              <Input
+                id="tags"
+                value={form.tags}
+                onChange={(e) => set("tags", e.target.value)}
+                placeholder="silver, morgan, us-mint"
+              />
             </div>
           </CardContent>
         </Card>
