@@ -225,6 +225,53 @@ export function deleteCollection(token: string, id: string) {
   });
 }
 
+// --- Collection cover image ---
+//
+// Same two-step handshake as asset images. The cover is upserted: a second
+// recordCover call against the same collection replaces the existing row
+// and deletes the previous storage blob server-side.
+
+export function requestCollectionCoverUploadUrl(
+  token: string,
+  collectionId: string
+) {
+  return request<{ uploadUrl: string }>(
+    `/api/v1/collections/${collectionId}/cover/upload-url`,
+    { method: "POST", token }
+  );
+}
+
+export function recordCollectionCover(
+  token: string,
+  collectionId: string,
+  data: { storageId: string; metadataCiphertext: string }
+) {
+  return request<{ id: string }>(`/api/v1/collections/${collectionId}/cover`, {
+    method: "POST",
+    token,
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateCollectionCoverMetadata(
+  token: string,
+  collectionId: string,
+  data: { metadataCiphertext: string }
+) {
+  return request<void>(`/api/v1/collections/${collectionId}/cover`, {
+    method: "PATCH",
+    token,
+    body: JSON.stringify(data),
+  });
+}
+
+export function deleteCollectionCover(token: string, collectionId: string) {
+  return request<void>(`/api/v1/collections/${collectionId}/cover`, {
+    method: "DELETE",
+    token,
+  });
+}
+
 // --- Assets ---
 
 export interface DescriptorValueInput {

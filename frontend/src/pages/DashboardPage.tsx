@@ -42,6 +42,7 @@ import { toast } from "sonner";
 import { useEncryption } from "@/lib/encryption-provider";
 import { useDecrypted } from "@/lib/use-decrypted";
 import { decryptOptionalNumber, decryptOptionalText, decryptText } from "@/lib/encrypted-fields";
+import { CollectionCoverImage } from "@/components/images/CollectionCoverImage";
 
 const SHOW_VALUES_KEY = "cg.showCollectionValues";
 
@@ -104,6 +105,23 @@ export function DashboardPage() {
   const collectionTypes = useQuery(api.collectionTypes.listCollectionTypes);
   const assetTypes = useQuery(api.assetTypes.listAssetTypes);
   const assetCount = useQuery(api.assets.getAssetCount);
+  // Bulk cover lookup — one reactive query covers every visible tile so we
+  // don't issue N parallel subscriptions. Derived from the raw collection
+  // list so it stays stable while decryption is still in flight.
+  const collectionIds = useMemo(
+    () => (collections ?? []).map((c) => c._id as Id<"collections">),
+    [collections]
+  );
+  const covers = useQuery(api.images.listCoversByCollectionIds, {
+    collectionIds,
+  });
+  const coverByCollectionId = useMemo(
+    () =>
+      new Map(
+        (covers ?? []).map((c) => [c.collectionId as string, c] as const)
+      ),
+    [covers]
+  );
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showValues, setShowValues] = useState(readShowValues);
 
@@ -295,12 +313,29 @@ export function DashboardPage() {
               const typeName = col.collectionTypeId
                 ? typeNameById?.get(col.collectionTypeId)
                 : undefined;
+              const cover = coverByCollectionId.get(col._id);
+              // `covers === undefined` => bulk query still loading: pass
+              // `undefined` so the cover image shows its loading state.
+              // Once resolved, `cover` is `undefined` only when this
+              // collection has no row in the result set → no cover set.
+              const coverProp = covers === undefined ? undefined : cover ?? null;
               return (
                 <div
                   key={col._id}
-                  className="group relative rounded-xl border bg-card p-5 hover:shadow-sm transition-shadow"
+                  className="group relative rounded-xl border bg-card hover:shadow-sm transition-shadow overflow-hidden"
                 >
-                  <div className="flex items-start justify-between gap-2">
+                  <Link
+                    to={`/collections/${col._id}`}
+                    aria-label={`Open ${col.name}`}
+                    className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                  >
+                    <CollectionCoverImage
+                      cover={coverProp}
+                      collectionName={col.name}
+                      className="aspect-video w-full"
+                    />
+                  </Link>
+                  <div className="flex items-start justify-between gap-2 p-5">
                     <Link
                       to={`/collections/${col._id}`}
                       className="flex-1 no-underline text-inherit focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"

@@ -21,6 +21,7 @@ import {
   encryptOptionalText,
   encryptText,
 } from "@/lib/encrypted-fields";
+import { CollectionCoverPicker } from "@/components/images/CollectionCoverPicker";
 
 interface InitialForm {
   name: string;
@@ -160,6 +161,19 @@ function EditCollectionForm({ id, initial }: { id: string; initial: InitialForm 
               </Button>
             </div>
           </form>
+        </CardContent>
+      </Card>
+
+      {/* Cover image lives outside the metadata card on purpose — its
+          uploads/replaces happen immediately on pick (separate from the
+          form submit), so grouping it with the form's Save would mislead
+          about when the change persists. */}
+      <Card>
+        <CardContent className="pt-6">
+          <CollectionCoverPicker
+            collectionId={id}
+            collectionName={form.name.trim() || initial.name}
+          />
         </CardContent>
       </Card>
     </div>

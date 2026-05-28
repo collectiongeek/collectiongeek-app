@@ -29,6 +29,7 @@ import {
   decryptText,
 } from "@/lib/encrypted-fields";
 import { EncryptedThumbnail } from "@/components/images/EncryptedThumbnail";
+import { CollectionCoverImage } from "@/components/images/CollectionCoverImage";
 
 interface DecryptedCollection {
   name: string;
@@ -59,6 +60,7 @@ function CollectionDetail({ id }: { id: string }) {
 
   const collectionId = id as Id<"collections">;
   const collection = useQuery(api.collections.getCollection, { collectionId });
+  const cover = useQuery(api.images.getCoverByCollection, { collectionId });
   const assets = useQuery(api.assets.listAssetsInCollection, { collectionId });
   const assetIds = assets?.map((a) => a._id as Id<"assets">) ?? [];
   const primaries = useQuery(api.images.listPrimariesByAssetIds, { assetIds });
@@ -155,6 +157,12 @@ function CollectionDetail({ id }: { id: string }) {
 
   return (
     <div className="space-y-6">
+      <CollectionCoverImage
+        cover={cover}
+        collectionName={decryptedCollection.name}
+        className="aspect-video w-full rounded-xl border"
+      />
+
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-2">
           <Link to="/dashboard"><ChevronLeft className="size-4" />Dashboard</Link>

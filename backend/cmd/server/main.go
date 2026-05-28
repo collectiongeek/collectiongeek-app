@@ -117,6 +117,15 @@ func main() {
 		r.Put("/collections/{id}", collectionsH.UpdateCollection)
 		r.Delete("/collections/{id}", collectionsH.DeleteCollection)
 
+		// Collection cover image. Same upload handshake as asset images
+		// (bytes go straight to Convex File Storage); these endpoints
+		// mediate the URL handshake, persist the metadata row, and gate
+		// ownership. recordCover is upsert — one cover per collection.
+		r.Post("/collections/{id}/cover/upload-url", collectionsH.RequestCoverUploadURL)
+		r.Post("/collections/{id}/cover", collectionsH.RecordCover)
+		r.Patch("/collections/{id}/cover", collectionsH.UpdateCoverMetadata)
+		r.Delete("/collections/{id}/cover", collectionsH.DeleteCover)
+
 		// Assets
 		r.Post("/assets", assetsH.CreateAsset)
 		r.Put("/assets/{id}", assetsH.UpdateAsset)
