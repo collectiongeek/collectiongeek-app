@@ -88,8 +88,16 @@ export function CreateCollectionPage() {
       // Best-effort cover attach. The collection itself was created
       // successfully; if the cover step fails we still navigate and let
       // the user retry from the Edit page. workosUserId comes from the
-      // encryption context and is required for the owner-header wrap.
-      if (coverFile && workosUserId) {
+      // encryption context and is required for the owner-header wrap —
+      // in practice it's set alongside the dek, but if it ever isn't
+      // we warn rather than silently dropping the upload, so the user
+      // knows to retry from Edit.
+      if (coverFile && !workosUserId) {
+        console.warn("Cover upload skipped: missing workosUserId");
+        toast.warning(
+          "Collection created, but the cover image couldn't be attached."
+        );
+      } else if (coverFile && workosUserId) {
         try {
           const compressed = await compressForUpload(coverFile);
           if (compressed.size > MAX_FILE_SIZE_BYTES) {

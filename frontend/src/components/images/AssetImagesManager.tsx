@@ -187,7 +187,7 @@ export function AssetImagesManager({ assetId }: Props) {
             <p className="text-sm font-medium">No images yet</p>
             <p className="text-xs text-muted-foreground mt-1">
               Drag photos here or pick from your device. Up to{" "}
-              {MAX_IMAGES_PER_ASSET}.
+              {MAX_IMAGES_PER_ASSET} images.
             </p>
             <Button
               type="button"

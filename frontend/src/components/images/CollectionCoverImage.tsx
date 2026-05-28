@@ -18,8 +18,11 @@ interface CoverInput {
 
 interface Props {
   /** The cover row from getCoverByCollection / listCoversByCollectionIds.
-   *  `null` => collection has no cover; we render the fallback color.
-   *  `undefined` => still loading from Convex; we render a skeleton. */
+   *  Both `null` (no cover set) and `undefined` (Convex query still
+   *  loading) render the deterministic fallback color — on a dashboard
+   *  with N tiles, a wall of spinners is more jarring than the calm
+   *  color, and rendering the color in the loading state also avoids
+   *  flickering on tiles whose query resolves to "no cover set". */
   cover: CoverInput | null | undefined;
   /** Used by the fallback color hash so distinct collections get distinct
    *  tiles even before they have a cover image. */

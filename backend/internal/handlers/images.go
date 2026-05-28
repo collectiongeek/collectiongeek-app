@@ -169,6 +169,12 @@ func writeImagesConvexError(w http.ResponseWriter, err error, fallback string) {
 	switch {
 	case strings.Contains(msg, "ArgumentValidationError"):
 		http.Error(w, "Invalid id in request", http.StatusBadRequest)
+	// Shape-only ciphertext validator errors (assertCiphertextShape in
+	// convex/ciphertext.ts) all carry ": ciphertext " in the message.
+	// These are client-input failures — wrong base64, wrong length,
+	// stale-client writing plaintext — so 400 is the honest code.
+	case strings.Contains(msg, ": ciphertext "):
+		http.Error(w, "Invalid encrypted payload", http.StatusBadRequest)
 	case strings.Contains(msg, "Asset not found"):
 		http.Error(w, "Asset not found", http.StatusNotFound)
 	case strings.Contains(msg, "Image not found"):
