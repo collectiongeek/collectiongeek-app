@@ -76,8 +76,11 @@ export function AllAssetsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Assets</h1>
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
+        <h1 className="text-2xl font-bold">
+          Assets
+          <span className="ml-2 text-muted-foreground font-normal">· {assets.length}</span>
+        </h1>
         <Button asChild>
           <Link to="/assets/new"><Plus className="size-4" />New asset</Link>
         </Button>
