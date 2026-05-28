@@ -30,12 +30,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   BookOpen,
-  FolderTree,
   MoreHorizontal,
-  Package,
   Pencil,
   Plus,
-  Tags,
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -103,8 +100,6 @@ export function DashboardPage() {
   const navigate = useNavigate();
   const collections = useQuery(api.collections.listCollections);
   const collectionTypes = useQuery(api.collectionTypes.listCollectionTypes);
-  const assetTypes = useQuery(api.assetTypes.listAssetTypes);
-  const assetCount = useQuery(api.assets.getAssetCount);
   // Bulk cover lookup — one reactive query covers every visible tile so we
   // don't issue N parallel subscriptions. Derived from the raw collection
   // list so it stays stable while decryption is still in flight.
@@ -198,63 +193,12 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Link
-          to="/assets"
-          className="rounded-xl border bg-card p-4 hover:shadow-sm transition-shadow"
-        >
-          <div className="flex items-center gap-3">
-            <Package className="size-5 text-muted-foreground" />
-            <div>
-              <p className="font-semibold text-sm">
-                All assets
-                {assetCount !== undefined && (
-                  <span className="text-muted-foreground font-normal"> · {assetCount}</span>
-                )}
-              </p>
-              <p className="text-xs text-muted-foreground">Browse everything you've cataloged</p>
-            </div>
-          </div>
-        </Link>
-        <Link
-          to="/asset-types"
-          className="rounded-xl border bg-card p-4 hover:shadow-sm transition-shadow"
-        >
-          <div className="flex items-center gap-3">
-            <Tags className="size-5 text-muted-foreground" />
-            <div>
-              <p className="font-semibold text-sm">
-                Asset types
-                {assetTypes !== undefined && (
-                  <span className="text-muted-foreground font-normal"> · {assetTypes.length}</span>
-                )}
-              </p>
-              <p className="text-xs text-muted-foreground">Define the kinds of things you collect</p>
-            </div>
-          </div>
-        </Link>
-        <Link
-          to="/collection-types"
-          className="rounded-xl border bg-card p-4 hover:shadow-sm transition-shadow"
-        >
-          <div className="flex items-center gap-3">
-            <FolderTree className="size-5 text-muted-foreground" />
-            <div>
-              <p className="font-semibold text-sm">
-                Collection types
-                {collectionTypes !== undefined && (
-                  <span className="text-muted-foreground font-normal"> · {collectionTypes.length}</span>
-                )}
-              </p>
-              <p className="text-xs text-muted-foreground">Group collections by kind</p>
-            </div>
-          </div>
-        </Link>
-      </div>
-
       <div className="space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-2xl font-bold">My Collections</h1>
+          <h1 className="text-2xl font-bold">
+            My Collections
+            <span className="ml-2 text-muted-foreground font-normal">· {collections.length}</span>
+          </h1>
           <div className="flex flex-wrap items-center justify-between gap-4 sm:justify-end">
             <label className="flex items-center gap-2 text-sm text-muted-foreground select-none">
               Show total values

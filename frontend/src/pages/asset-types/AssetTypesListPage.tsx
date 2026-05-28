@@ -56,7 +56,10 @@ export function AssetTypesListPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
-        <h1 className="text-2xl font-bold">Asset Types</h1>
+        <h1 className="text-2xl font-bold">
+          Asset Types
+          <span className="ml-2 text-muted-foreground font-normal">· {assetTypes.length}</span>
+        </h1>
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" asChild>
             <Link to="/templates"><Library className="size-4" />Browse library</Link>

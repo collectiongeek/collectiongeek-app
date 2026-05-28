@@ -29,21 +29,6 @@ export const listAllAssets = query({
   },
 });
 
-// Count-only variant for the Dashboard's "All assets · N" card. Just a
-// length, no per-asset payload — fine to keep server-side because it doesn't
-// leak any content.
-export const getAssetCount = query({
-  handler: async (ctx) => {
-    const user = await getUserFromIdentity(ctx);
-    if (!user) return 0;
-    const assets = await ctx.db
-      .query("assets")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
-      .collect();
-    return assets.length;
-  },
-});
-
 export const listAssetsInCollection = query({
   args: { collectionId: v.id("collections") },
   handler: async (ctx, { collectionId }) => {
