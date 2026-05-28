@@ -240,6 +240,214 @@ export const updateImage = internalMutation({
   },
 });
 
+// --- Collection cover images ---------------------------------------
+//
+// One row per collection (upserted by `recordCover`). Bytes go to Convex
+// File Storage with the same owner-header + AES-GCM envelope as asset
+// images. The "one cover per collection" invariant is enforced at the
+// write path — Convex indexes don't support uniqueness.
+
+async function assertCollectionOwned(
+  ctx: any,
+  collectionId: any,
+  userId: any
+) {
+  const collection = await ctx.db.get(collectionId);
+  if (!collection || collection.userId !== userId) {
+    throw new Error("Collection not found");
+  }
+  return collection;
+}
+
+// Returns the cover row for a single collection (with a short-lived
+// storage URL), or null when no cover is set or the requester doesn't
+// own the collection.
+export const getCoverByCollection = query({
+  args: { collectionId: v.id("collections") },
+  handler: async (ctx, { collectionId }) => {
+    const user = await getUserFromIdentity(ctx);
+    if (!user) return null;
+
+    const collection = await ctx.db.get(collectionId);
+    if (!collection || collection.userId !== user._id) return null;
+
+    const row = await ctx.db
+      .query("collectionImages")
+      .withIndex("by_collection", (q) => q.eq("collectionId", collectionId))
+      .unique();
+    if (!row) return null;
+
+    return {
+      ...row,
+      storageUrl: await ctx.storage.getUrl(row.storageId),
+    };
+  },
+});
+
+// Bulk variant for the dashboard — one query covers every visible card.
+// Silently drops collections the requester doesn't own (same pattern as
+// listPrimariesByAssetIds).
+export const listCoversByCollectionIds = query({
+  args: { collectionIds: v.array(v.id("collections")) },
+  handler: async (ctx, { collectionIds }) => {
+    const user = await getUserFromIdentity(ctx);
+    if (!user || collectionIds.length === 0) return [];
+
+    const results = await Promise.all(
+      collectionIds.map(async (collectionId) => {
+        const collection = await ctx.db.get(collectionId);
+        if (!collection || collection.userId !== user._id) return null;
+        const row = await ctx.db
+          .query("collectionImages")
+          .withIndex("by_collection", (q) => q.eq("collectionId", collectionId))
+          .unique();
+        if (!row) return null;
+        return {
+          collectionId,
+          _id: row._id,
+          storageId: row.storageId,
+          storageUrl: await ctx.storage.getUrl(row.storageId),
+          metadataCiphertext: row.metadataCiphertext,
+        };
+      })
+    );
+    return results.filter((r): r is NonNullable<typeof r> => r !== null);
+  },
+});
+
+// Generates a one-shot upload URL for the cover bytes. Ownership is the
+// only gate — there's no cap to check (one cover per collection is the
+// cap, enforced by the upsert in recordCover).
+export const generateCoverUploadUrl = internalMutation({
+  args: {
+    workosUserId: v.string(),
+    collectionId: v.id("collections"),
+  },
+  handler: async (ctx, { workosUserId, collectionId }) => {
+    const user = await resolveUser(ctx, workosUserId);
+    await assertCollectionOwned(ctx, collectionId, user._id);
+
+    const uploadUrl = await ctx.storage.generateUploadUrl();
+    return { uploadUrl };
+  },
+});
+
+// Upserts the cover row. If a previous cover exists, its storage blob is
+// deleted first — keeps storage in sync without requiring the client to
+// orchestrate a separate clear-then-set sequence (which would race).
+export const recordCover = internalMutation({
+  args: {
+    workosUserId: v.string(),
+    collectionId: v.id("collections"),
+    storageId: v.id("_storage"),
+    metadataCiphertext: v.string(),
+  },
+  handler: async (
+    ctx,
+    { workosUserId, collectionId, storageId, metadataCiphertext }
+  ) => {
+    assertCiphertextShape(metadataCiphertext, "metadataCiphertext");
+
+    const user = await resolveUser(ctx, workosUserId);
+    await assertCollectionOwned(ctx, collectionId, user._id);
+
+    // Same retry-safety guard as recordImage: if a network blip caused
+    // this exact storageId to already be recorded (against any collection),
+    // refuse rather than create a parallel row that would steal blob
+    // ownership on the next delete.
+    const dupForStorage = await ctx.db
+      .query("collectionImages")
+      .withIndex("by_storage", (q) => q.eq("storageId", storageId))
+      .unique();
+    if (dupForStorage) {
+      throw new Error("Cover already recorded");
+    }
+
+    const now = Date.now();
+    const existing = await ctx.db
+      .query("collectionImages")
+      .withIndex("by_collection", (q) => q.eq("collectionId", collectionId))
+      .unique();
+
+    if (existing) {
+      // Replace: delete the previous blob first, then patch the row in
+      // place. Order matters — if the patch fails the old blob is gone
+      // but the row still references it, which the next getUrl will
+      // surface as a broken cover. Cheaper failure mode than orphaning
+      // a blob on every replace.
+      await ctx.storage.delete(existing.storageId);
+      await ctx.db.patch(existing._id, {
+        storageId,
+        metadataCiphertext,
+        updatedAt: now,
+      });
+      return { id: existing._id };
+    }
+
+    const id = await ctx.db.insert("collectionImages", {
+      collectionId,
+      userId: user._id,
+      storageId,
+      metadataCiphertext,
+      createdAt: now,
+      updatedAt: now,
+    });
+    return { id };
+  },
+});
+
+// Patches the crop-view metadata without touching the bytes. Used by the
+// crop dialog when the user reframes an existing cover.
+export const updateCoverMetadata = internalMutation({
+  args: {
+    workosUserId: v.string(),
+    collectionId: v.id("collections"),
+    metadataCiphertext: v.string(),
+  },
+  handler: async (
+    ctx,
+    { workosUserId, collectionId, metadataCiphertext }
+  ) => {
+    assertCiphertextShape(metadataCiphertext, "metadataCiphertext");
+
+    const user = await resolveUser(ctx, workosUserId);
+    await assertCollectionOwned(ctx, collectionId, user._id);
+
+    const row = await ctx.db
+      .query("collectionImages")
+      .withIndex("by_collection", (q) => q.eq("collectionId", collectionId))
+      .unique();
+    if (!row) throw new Error("Cover not found");
+
+    await ctx.db.patch(row._id, {
+      metadataCiphertext,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+// Clears the cover (row + storage blob). No-op if no cover is set so the
+// client can call this idempotently.
+export const deleteCover = internalMutation({
+  args: {
+    workosUserId: v.string(),
+    collectionId: v.id("collections"),
+  },
+  handler: async (ctx, { workosUserId, collectionId }) => {
+    const user = await resolveUser(ctx, workosUserId);
+    await assertCollectionOwned(ctx, collectionId, user._id);
+
+    const row = await ctx.db
+      .query("collectionImages")
+      .withIndex("by_collection", (q) => q.eq("collectionId", collectionId))
+      .unique();
+    if (!row) return;
+
+    await ctx.storage.delete(row.storageId);
+    await ctx.db.delete(row._id);
+  },
+});
+
 // Hard-deletes the row AND the underlying storage blob. If the removed row
 // was the primary and others remain, promotes the lowest-position survivor.
 export const deleteImage = internalMutation({

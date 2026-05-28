@@ -162,6 +162,25 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_storage", ["storageId"]),
 
+  // Per-collection cover image (one row per collection). Same encryption
+  // substrate as assetImages — encrypted bytes in Convex File Storage with
+  // a plaintext owner-header prefix, plus a ciphertext metadata blob
+  // carrying the 16:9 crop region. recordCover treats writes as upsert:
+  // a second write replaces the existing row and deletes its storage blob,
+  // so the "one cover per collection" invariant is upheld at the write path
+  // rather than via index uniqueness (which Convex doesn't enforce).
+  collectionImages: defineTable({
+    collectionId: v.id("collections"),
+    userId: v.id("users"),
+    storageId: v.id("_storage"),
+    metadataCiphertext: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_collection", ["collectionId"])
+    .index("by_user", ["userId"])
+    .index("by_storage", ["storageId"]),
+
   // ---------------------------------------------------------------------------
   // Public asset-type template catalog. Everything below this line is PLAINTEXT
   // — these rows are shared across all users. When a user "installs" a template

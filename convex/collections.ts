@@ -166,6 +166,17 @@ export const deleteCollection = internalMutation({
       .collect();
     await Promise.all(memberships.map((m) => ctx.db.delete(m._id)));
 
+    // Cascade the cover image (at most one row by construction) so the
+    // storage blob doesn't outlive its collection.
+    const cover = await ctx.db
+      .query("collectionImages")
+      .withIndex("by_collection", (q) => q.eq("collectionId", collectionId))
+      .unique();
+    if (cover) {
+      await ctx.storage.delete(cover.storageId);
+      await ctx.db.delete(cover._id);
+    }
+
     await ctx.db.delete(collectionId);
   },
 });

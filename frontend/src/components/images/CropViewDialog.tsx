@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import Cropper, { type Area } from "react-easy-crop";
-import { useAuth } from "@workos-inc/authkit-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -21,7 +20,6 @@ import {
   type CropRegion,
   type ImageMetadata,
 } from "@/lib/images";
-import { updateImage } from "@/lib/api";
 
 // Smooths a number to 4 decimals before persisting. Avoids gigantic ratios
 // like 0.4999999991 round-tripping through the ciphertext and bloating
@@ -30,28 +28,43 @@ function trim(n: number): number {
   return Math.round(n * 10_000) / 10_000;
 }
 
+interface ImageInput {
+  storageId: string;
+  storageUrl: string | null;
+  metadataCiphertext: string;
+}
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  assetId: string;
-  image: {
-    _id: string;
-    storageId: string;
-    storageUrl: string | null;
-    metadataCiphertext: string;
-  };
+  image: ImageInput;
+  /** Aspect ratio for the crop box. 1 = square (asset thumbnails),
+   *  16/9 = collection cover banner. Defaults to square. */
+  aspect?: number;
+  /** Dialog title — defaults to "Crop view" but callers can specialize
+   *  ("Crop cover" for the collection variant). */
+  title?: string;
+  /** Helper text under the title. Defaults to the asset-image wording. */
+  description?: string;
+  /** Persist the new metadata ciphertext. Caller decides which API to
+   *  hit (asset updateImage vs. collection updateCoverMetadata). Throw
+   *  to surface a failure — the dialog shows a generic toast and stays
+   *  open so the user can retry. */
+  onSave: (metadataCiphertext: string) => Promise<void>;
   onSaved?: () => void;
 }
 
 export function CropViewDialog({
   open,
   onOpenChange,
-  assetId,
   image,
+  aspect = 1,
+  title = "Crop view",
+  description = "Adjust how this image appears on the asset card. The original file is unchanged.",
+  onSave,
   onSaved,
 }: Props) {
   const { dek } = useEncryption();
-  const { getAccessToken } = useAuth();
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
   const [meta, setMeta] = useState<ImageMetadata | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
@@ -152,9 +165,7 @@ export function CropViewDialog({
       const nextMeta: ImageMetadata = { ...meta, cropView };
       const metadataCiphertext = await encryptImageMetadata(nextMeta, dek);
 
-      const token = await getAccessToken();
-      if (!token) throw new Error("Not authenticated");
-      await updateImage(token, assetId, image._id, { metadataCiphertext });
+      await onSave(metadataCiphertext);
       toast.success("Crop saved");
       onSaved?.();
       onOpenChange(false);
@@ -170,11 +181,8 @@ export function CropViewDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Crop view</DialogTitle>
-          <DialogDescription>
-            Adjust how this image appears on the asset card. The original file
-            is unchanged.
-          </DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
         <div className="relative h-72 w-full overflow-hidden rounded-md bg-muted">
@@ -187,7 +195,7 @@ export function CropViewDialog({
               image={objectUrl}
               crop={crop}
               zoom={zoom}
-              aspect={1}
+              aspect={aspect}
               onCropChange={setCrop}
               onZoomChange={setZoom}
               onCropComplete={onCropComplete}

@@ -187,7 +187,7 @@ export function AssetImagesManager({ assetId }: Props) {
             <p className="text-sm font-medium">No images yet</p>
             <p className="text-xs text-muted-foreground mt-1">
               Drag photos here or pick from your device. Up to{" "}
-              {MAX_IMAGES_PER_ASSET}, max 1500&nbsp;px / 500&nbsp;KB each.
+              {MAX_IMAGES_PER_ASSET} images.
             </p>
             <Button
               type="button"
@@ -257,8 +257,14 @@ export function AssetImagesManager({ assetId }: Props) {
             key={`crop-${image._id}`}
             open
             onOpenChange={(o) => setCropOpen(o ? image._id : null)}
-            assetId={assetId}
             image={image}
+            onSave={async (metadataCiphertext) => {
+              const token = await getAccessToken();
+              if (!token) throw new Error("Not authenticated");
+              await updateImage(token, assetId, image._id, {
+                metadataCiphertext,
+              });
+            }}
           />
         ) : null
       )}

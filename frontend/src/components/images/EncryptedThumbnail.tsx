@@ -76,6 +76,10 @@ export function EncryptedThumbnail({
     setObjectUrl(null);
     setFailed(false);
 
+    // The returned URL is owned by the shared LRU cache in lib/images.ts
+    // and may be held simultaneously by other consumers (other tiles, the
+    // lightbox, the crop dialog). DO NOT call URL.revokeObjectURL on it
+    // from here — the cache evicts via its own mechanism.
     getDecryptedImageUrl(sid, image.storageUrl, dek)
       .then((url) => {
         if (loadingForRef.current !== sid) return;

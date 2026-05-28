@@ -4,7 +4,11 @@ import { useQuery } from "convex/react";
 import { useAuth } from "@workos-inc/authkit-react";
 import { api } from "@convex-gen/api";
 import type { Doc } from "@convex-gen/dataModel";
-import { createCollection } from "@/lib/api";
+import {
+  createCollection,
+  recordCollectionCover,
+  requestCollectionCoverUploadUrl,
+} from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input, nativeSelectClasses } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,10 +19,20 @@ import { toast } from "sonner";
 import { useEncryption } from "@/lib/encryption-provider";
 import { useDecrypted } from "@/lib/use-decrypted";
 import { decryptText, encryptOptionalText, encryptText } from "@/lib/encrypted-fields";
+import { PendingCoverPicker } from "@/components/images/PendingCoverPicker";
+import {
+  compressForUpload,
+  DEFAULT_CROP_VIEW,
+  encryptForUpload,
+  encryptImageMetadata,
+  MAX_FILE_SIZE_BYTES,
+  uploadEncryptedBlob,
+  type ImageMetadata,
+} from "@/lib/images";
 
 export function CreateCollectionPage() {
   const { getAccessToken } = useAuth();
-  const { dek } = useEncryption();
+  const { dek, workosUserId } = useEncryption();
   const navigate = useNavigate();
   const collectionTypes = useQuery(api.collectionTypes.listCollectionTypes);
 
@@ -49,6 +63,7 @@ export function CreateCollectionPage() {
     description: "",
     collectionTypeId: "",
   });
+  const [coverFile, setCoverFile] = useState<File | null>(null);
 
   function set(field: keyof typeof form, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -69,6 +84,56 @@ export function CreateCollectionPage() {
         ),
         collectionTypeId: form.collectionTypeId || undefined,
       });
+
+      // Best-effort cover attach. The collection itself was created
+      // successfully; if the cover step fails we still navigate and let
+      // the user retry from the Edit page. workosUserId comes from the
+      // encryption context and is required for the owner-header wrap —
+      // in practice it's set alongside the dek, but if it ever isn't
+      // we warn rather than silently dropping the upload, so the user
+      // knows to retry from Edit.
+      if (coverFile && !workosUserId) {
+        console.warn("Cover upload skipped: missing workosUserId");
+        toast.warning(
+          "Collection created, but the cover image couldn't be attached."
+        );
+      } else if (coverFile && workosUserId) {
+        try {
+          const compressed = await compressForUpload(coverFile);
+          if (compressed.size > MAX_FILE_SIZE_BYTES) {
+            toast.warning(
+              "Collection created, but the cover image was too large to attach."
+            );
+          } else {
+            const encrypted = await encryptForUpload(
+              compressed,
+              dek,
+              workosUserId
+            );
+            const { uploadUrl } = await requestCollectionCoverUploadUrl(
+              token,
+              id
+            );
+            const storageId = await uploadEncryptedBlob(uploadUrl, encrypted);
+            const meta: ImageMetadata = {
+              cropView: DEFAULT_CROP_VIEW,
+              contentType: "image/jpeg",
+              sizeBytes: compressed.size,
+            };
+            const metadataCiphertext = await encryptImageMetadata(meta, dek);
+            await recordCollectionCover(token, id, {
+              storageId,
+              metadataCiphertext,
+            });
+          }
+        } catch (err) {
+          console.error("Cover upload failed:", err);
+          toast.warning(
+            "Collection created, but the cover image couldn't be uploaded."
+          );
+        }
+      }
+
       toast.success("Collection created");
       navigate(`/collections/${id}`);
     } catch {
@@ -140,6 +205,12 @@ export function CreateCollectionPage() {
                 if you don't see the one you need.
               </p>
             </div>
+
+            <PendingCoverPicker
+              file={coverFile}
+              onChange={setCoverFile}
+              disabled={saving}
+            />
 
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={() => navigate("/dashboard")}>
