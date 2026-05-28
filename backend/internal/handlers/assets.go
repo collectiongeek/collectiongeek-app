@@ -32,9 +32,12 @@ type createAssetBody struct {
 	Name             string                 `json:"name"`
 	Description      string                 `json:"description"`
 	DateAcquired     string                 `json:"dateAcquired"`
+	DateSold         string                 `json:"dateSold"`
 	PurchasedValue   string                 `json:"purchasedValue"`
 	MarketValue      string                 `json:"marketValue"`
 	Tags             string                 `json:"tags"`
+	Kind             string                 `json:"kind"`
+	Status           string                 `json:"status"`
 	CollectionIDs    []string               `json:"collectionIds"`
 	DescriptorValues []descriptorValueInput `json:"descriptorValues"`
 }
@@ -74,6 +77,9 @@ func (h *AssetsHandler) CreateAsset(w http.ResponseWriter, r *http.Request) {
 	if body.DateAcquired != "" {
 		args["dateAcquired"] = body.DateAcquired
 	}
+	if body.DateSold != "" {
+		args["dateSold"] = body.DateSold
+	}
 	if body.PurchasedValue != "" {
 		args["purchasedValue"] = body.PurchasedValue
 	}
@@ -82,6 +88,12 @@ func (h *AssetsHandler) CreateAsset(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.Tags != "" {
 		args["tags"] = body.Tags
+	}
+	if body.Kind != "" {
+		args["kind"] = body.Kind
+	}
+	if body.Status != "" {
+		args["status"] = body.Status
 	}
 	if len(body.CollectionIDs) > 0 {
 		args["collectionIds"] = body.CollectionIDs
@@ -138,9 +150,12 @@ func (h *AssetsHandler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 		Name             *string                `json:"name"`
 		Description      *string                `json:"description"`
 		DateAcquired     *string                `json:"dateAcquired"`
+		DateSold         *string                `json:"dateSold"`
 		PurchasedValue   *string                `json:"purchasedValue"`
 		MarketValue      *string                `json:"marketValue"`
 		Tags             *string                `json:"tags"`
+		Kind             *string                `json:"kind"`
+		Status           *string                `json:"status"`
 		CollectionIDs    []string               `json:"collectionIds"`
 		DescriptorValues []descriptorValueInput `json:"descriptorValues"`
 	}
@@ -173,7 +188,20 @@ func (h *AssetsHandler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 		args["description"] = *body.Description
 	}
 	if body.DateAcquired != nil {
-		args["dateAcquired"] = *body.DateAcquired
+		// Empty string from the frontend = "clear the date". Convex's updateAsset
+		// distinguishes null (clear) from undefined (leave unchanged), so map "" → nil.
+		if *body.DateAcquired == "" {
+			args["dateAcquired"] = nil
+		} else {
+			args["dateAcquired"] = *body.DateAcquired
+		}
+	}
+	if body.DateSold != nil {
+		if *body.DateSold == "" {
+			args["dateSold"] = nil
+		} else {
+			args["dateSold"] = *body.DateSold
+		}
 	}
 	if body.PurchasedValue != nil {
 		args["purchasedValue"] = *body.PurchasedValue
@@ -183,6 +211,22 @@ func (h *AssetsHandler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.Tags != nil {
 		args["tags"] = *body.Tags
+	}
+	if body.Kind != nil {
+		// Empty string from the frontend = "clear the kind". Convex's updateAsset
+		// distinguishes null (clear) from undefined (leave unchanged), so map "" → nil.
+		if *body.Kind == "" {
+			args["kind"] = nil
+		} else {
+			args["kind"] = *body.Kind
+		}
+	}
+	if body.Status != nil {
+		if *body.Status == "" {
+			args["status"] = nil
+		} else {
+			args["status"] = *body.Status
+		}
 	}
 	if body.CollectionIDs != nil {
 		args["collectionIds"] = body.CollectionIDs

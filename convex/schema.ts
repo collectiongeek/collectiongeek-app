@@ -112,9 +112,14 @@ export default defineSchema({
     // Stored as ciphertext strings (even the numerics) — the client encrypts
     // the stringified value. Tags are ciphertext of JSON.stringify(tags[]).
     dateAcquired: v.optional(v.string()), // ciphertext
+    dateSold: v.optional(v.string()), // ciphertext
     purchasedValue: v.optional(v.string()), // ciphertext of stringified number
     marketValue: v.optional(v.string()), // ciphertext of stringified number
     tags: v.optional(v.string()), // ciphertext of JSON-stringified array
+    // Ciphertext of the enum value ("digital" | "physical") and
+    // ("owned" | "wished" | "for_sale" | "sold"). "Not set" maps to absent.
+    kind: v.optional(v.string()), // ciphertext
+    status: v.optional(v.string()), // ciphertext
     createdAt: v.number(),
     updatedAt: v.number(),
   })
