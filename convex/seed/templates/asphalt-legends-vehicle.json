@@ -1,0 +1,20 @@
+{
+  "slug": "asphalt-legends-vehicle",
+  "name": "Asphalt Legends Vehicle",
+  "description": "In-game vehicle from Gameloft's Asphalt Legends, tracked by class, rank, and stars.",
+  "category": "video-games",
+  "tags": ["mobile-game", "racing", "arcade", "gameloft"],
+  "version": "1.0.0",
+  "descriptors": [
+    { "order": 1, "key": "manufacturer", "name": "Manufacturer", "dataType": "text",    "required": false },
+    { "order": 2, "key": "model",        "name": "Model",        "dataType": "text",    "required": false },
+    { "order": 3, "key": "class",        "name": "Class",        "dataType": "select",  "required": false,
+      "options": ["D", "C", "B", "A", "S"] },
+    { "order": 4, "key": "star-rating",  "name": "Star Rating",  "dataType": "number",  "required": false },
+    { "order": 5, "key": "rank",         "name": "Rank",         "dataType": "number",  "required": false },
+    { "order": 6, "key": "drivetrain",   "name": "Drivetrain",   "dataType": "select",  "required": false,
+      "options": ["AWD", "RWD", "FWD"] },
+    { "order": 7, "key": "country",      "name": "Country of Origin", "dataType": "text",    "required": false },
+    { "order": 8, "key": "fully-maxed",  "name": "Fully Maxed",  "dataType": "boolean", "required": false }
+  ]
+}

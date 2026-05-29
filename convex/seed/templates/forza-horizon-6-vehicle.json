@@ -1,0 +1,26 @@
+{
+  "slug": "forza-horizon-6-vehicle",
+  "name": "Forza Horizon 6 Vehicle",
+  "description": "In-game vehicle from Forza Horizon 6, tracked by class, Performance Index, rarity, and credits value.",
+  "category": "video-games",
+  "tags": ["racing-game", "open-world", "in-game", "playground-games"],
+  "version": "1.0.0",
+  "descriptors": [
+    { "order": 1,  "key": "manufacturer",          "name": "Manufacturer",          "dataType": "text",    "required": false },
+    { "order": 2,  "key": "model",                 "name": "Model",                 "dataType": "text",    "required": false },
+    { "order": 3,  "key": "year",                  "name": "Year",                  "dataType": "year",    "required": false },
+    { "order": 4,  "key": "class",                 "name": "Class",                 "dataType": "select",  "required": false,
+      "options": ["D", "C", "B", "A", "S1", "S2", "R", "X"] },
+    { "order": 5,  "key": "performance-index",     "name": "Performance Index",     "dataType": "number",  "required": false },
+    { "order": 6,  "key": "rarity",                "name": "Rarity",                "dataType": "select",  "required": false,
+      "options": ["Common", "Rare", "Epic", "Legendary", "Forza Edition", "Barn Find", "Treasure Car"] },
+    { "order": 7,  "key": "drivetrain",            "name": "Drivetrain",            "dataType": "select",  "required": false,
+      "options": ["FWD", "RWD", "AWD"] },
+    { "order": 8,  "key": "country",               "name": "Country of Origin",     "dataType": "text",    "required": false },
+    { "order": 9,  "key": "stock-horsepower",      "name": "Stock Horsepower",      "dataType": "number",  "required": false },
+    { "order": 10, "key": "credits-value",         "name": "Credits Value",         "dataType": "number",  "required": false },
+    { "order": 11, "key": "custom-tune-applied",   "name": "Custom Tune Applied",   "dataType": "boolean", "required": false },
+    { "order": 12, "key": "custom-livery-applied", "name": "Custom Livery Applied", "dataType": "boolean", "required": false },
+    { "order": 13, "key": "exclusive-decals",      "name": "Exclusive Decals",      "dataType": "text",    "required": false }
+  ]
+}
