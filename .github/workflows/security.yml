@@ -1,0 +1,145 @@
+name: Security Scan
+
+# SAST (Opengrep) + dependency/secret/misconfig scanning (Trivy).
+#
+# Posture: REPORT-ONLY. These jobs upload findings to the repo's
+# Security tab (Code scanning) but never fail a PR. Tighten later by
+# adding `--error` to Opengrep and `exit-code: '1'` to Trivy once the
+# baseline noise is tuned out via .opengrep / .trivyignore.
+#
+# Scanner versions are PINNED and (for Opengrep) signature-verified —
+# treat your scanners like any other supply-chain dependency.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    # Weekly drift scan so newly-disclosed CVEs surface even with no commits.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------
+  # Opengrep — SAST for TypeScript/React, JavaScript, and Go.
+  # Pinned binary, cosign-verified, license-clean community rules.
+  # ---------------------------------------------------------
+  opengrep:
+    name: Opengrep (SAST)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write # required to upload SARIF to code scanning
+    env:
+      OPENGREP_VERSION: v1.22.0
+      # opengrep/opengrep-rules pinned to an immutable commit (license-clean
+      # Semgrep-rules fork). Bump deliberately, same as any dependency.
+      OPENGREP_RULES_REF: f1d2b562b414783763fd02a6ed2736eaed622efa
+      # Rule files contain UTF-8 (em dashes etc.); force a UTF-8 locale so the
+      # config loader doesn't choke on a non-UTF-8 default.
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install cosign (for signature verification)
+        uses: sigstore/cosign-installer@v4.1.2
+
+      - name: Download and verify Opengrep ${{ env.OPENGREP_VERSION }}
+        run: |
+          set -euo pipefail
+          base="https://github.com/opengrep/opengrep/releases/download/${OPENGREP_VERSION}"
+          curl -fsSL "${base}/opengrep_manylinux_x86"      -o opengrep
+          curl -fsSL "${base}/opengrep_manylinux_x86.sig"  -o opengrep.sig
+          curl -fsSL "${base}/opengrep_manylinux_x86.cert" -o opengrep.cert
+
+          # Keyless (Sigstore) verification: assert the artifact was signed by
+          # an opengrep org GitHub Actions workflow. Tighten the regexp to the
+          # exact release workflow path if you want a stricter trust anchor.
+          cosign verify-blob \
+            --certificate opengrep.cert \
+            --signature opengrep.sig \
+            --certificate-identity-regexp '^https://github.com/opengrep/.+' \
+            --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
+            opengrep
+
+          chmod +x opengrep
+          sudo mv opengrep /usr/local/bin/opengrep
+          opengrep --version
+
+      - name: Fetch pinned rule set
+        uses: actions/checkout@v6
+        with:
+          repository: opengrep/opengrep-rules
+          ref: ${{ env.OPENGREP_RULES_REF }}
+          path: .opengrep-rules
+
+      - name: Run Opengrep
+        continue-on-error: true # report-only: findings don't fail the build
+        run: |
+          set -euo pipefail
+          # Scope to the `security/` rule subdirectories only — the language
+          # roots also carry best-practice/i18n/portability rules that bury the
+          # security signal. Auto-discovering every security dir preserves
+          # per-framework coverage (JWT, node-crypto, DOM-XSS, …) without
+          # hardcoding a brittle list.
+          mapfile -t cfg < <(
+            find .opengrep-rules/typescript .opengrep-rules/javascript \
+                 .opengrep-rules/go .opengrep-rules/generic \
+                 -type d -name security
+          )
+          args=()
+          for d in "${cfg[@]}"; do args+=(--config "$d"); done
+          opengrep scan \
+            --sarif-output=opengrep.sarif \
+            "${args[@]}" \
+            --exclude '.opengrep-rules' \
+            --exclude 'node_modules' \
+            --exclude 'dist' \
+            .
+
+      - name: Upload Opengrep SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: opengrep.sarif
+          category: opengrep
+
+  # ---------------------------------------------------------
+  # Trivy — dependencies (npm + Go modules), secrets, and IaC /
+  # Dockerfile / compose misconfiguration, all in one pass.
+  # ---------------------------------------------------------
+  trivy:
+    name: Trivy (deps / secrets / misconfig)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Run Trivy filesystem scan
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scanners: vuln,secret,misconfig
+          format: sarif
+          output: trivy.sarif
+          exit-code: "0" # report-only
+          ignore-unfixed: true
+          # Honors the repo's existing .trivyignore for accepted findings.
+        env:
+          # Pin the vuln/policy DBs' source registries (defaults shown) so a
+          # registry move doesn't silently break the scan.
+          TRIVY_DB_REPOSITORY: mirror.gcr.io/aquasec/trivy-db,ghcr.io/aquasecurity/trivy-db
+
+      - name: Upload Trivy SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy.sarif
+          category: trivy

@@ -23,3 +23,7 @@ Thumbs.db
 
 # Claude Code (local agent config, transcripts, scratch — never committed)
 .claude/
+
+# Security tooling (local rule cache + scan artifacts)
+.opengrep-rules/
+*.sarif
