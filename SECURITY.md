@@ -129,6 +129,22 @@ If you want to verify any of the claims above, these are the relevant files:
 - Server-side encryption endpoints: [convex/users.ts](convex/users.ts) — `setEncryptionKey`, `rotateEncryptionKey`
 - Crypto tests (round-trip, rotation, wrong-code rejection, binary + owner header): [frontend/src/lib/crypto.test.ts](frontend/src/lib/crypto.test.ts)
 
+## Automated security scanning
+
+This repo is scanned continuously, and you can run the same scans locally. See
+[docs/security-scanning.md](docs/security-scanning.md) for the full setup. In short:
+
+- **Opengrep** — SAST for the TypeScript/React frontend, Convex functions, and the
+  Go backend. Catches injection, dangerous sinks, and auth mistakes via taint
+  analysis. Run locally with `npm run scan:sast`.
+- **Trivy** — dependency CVEs (npm + Go modules), leaked-secret detection, and
+  Dockerfile/compose misconfiguration in one pass. Run locally with `npm run scan:trivy`.
+- **GitHub-native** — CodeQL code scanning, secret scanning with push protection,
+  and Dependabot, all free on this public repo. Results land in the **Security** tab.
+
+Scanner versions are pinned and (for Opengrep) cosign-verified — the scanners are
+treated as supply-chain dependencies in their own right.
+
 ## Reporting a vulnerability
 
 If you find a flaw in the encryption design or implementation, please report it privately first. Email the maintainer (see the repo README for current contact) rather than opening a public issue. We'll acknowledge within a reasonable window and credit you in the fix unless you'd rather stay anonymous.

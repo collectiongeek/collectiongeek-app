@@ -7,7 +7,10 @@
     "deploy:convex": "convex deploy",
     "typecheck:convex": "tsc --noEmit -p convex/tsconfig.json",
     "seed:templates": "node scripts/seed-asset-templates.mjs",
-    "admin:sweep-orphans": "node scripts/admin-sweep-orphans.mjs"
+    "admin:sweep-orphans": "node scripts/admin-sweep-orphans.mjs",
+    "scan:security": "bash scripts/security-scan.sh",
+    "scan:sast": "bash scripts/security-scan.sh sast",
+    "scan:trivy": "bash scripts/security-scan.sh trivy"
   },
   "dependencies": {
     "convex": "^1.39.1"

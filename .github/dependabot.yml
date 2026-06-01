@@ -1,0 +1,51 @@
+version: 2
+
+# Free on public repos. Opens PRs for known-vulnerable / outdated deps
+# across every ecosystem in this repo. Grouped to keep PR volume sane.
+updates:
+  # Root npm (Convex + tooling)
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      root-npm:
+        patterns: ["*"]
+
+  # Frontend (TypeScript/React/Vite)
+  - package-ecosystem: npm
+    directory: "/frontend"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      frontend-npm:
+        patterns: ["*"]
+
+  # Backend (Go / Chi)
+  - package-ecosystem: gomod
+    directory: "/backend"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      backend-gomod:
+        patterns: ["*"]
+
+  # Dockerfiles (base image bumps)
+  - package-ecosystem: docker
+    directories:
+      - "/backend"
+      - "/frontend"
+    schedule:
+      interval: weekly
+
+  # GitHub Actions used in our workflows
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns: ["*"]
