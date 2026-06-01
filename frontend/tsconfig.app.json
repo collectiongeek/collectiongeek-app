@@ -4,7 +4,15 @@
     "target": "es2023",
     "lib": ["ES2023", "DOM"],
     "module": "esnext",
-    "types": ["vite/client"],
+    /* vite/client for import.meta.env etc. "node" is required because the
+     * committed Convex generated API (../convex/_generated/api.d.ts) imports
+     * the server modules to derive its types, which pulls convex/http.ts — a
+     * server file that reads process.env — into this program. Without "node",
+     * `process` is undefined there (TS2591). Until the vitest 4 bump a
+     * transitive dep happened to leak node's globals here; making it explicit
+     * keeps the build deterministic. (Convex is also typechecked on its own
+     * via typecheck:convex.) */
+    "types": ["vite/client", "node"],
     "skipLibCheck": true,
 
     /* Bundler mode */
