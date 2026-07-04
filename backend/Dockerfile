@@ -30,6 +30,7 @@ FROM gcr.io/distroless/static-debian12
 
 COPY --from=builder /server /server
 
-EXPOSE 8080
+# 8080 = API, 9090 = Prometheus /metrics (cluster-internal only)
+EXPOSE 8080 9090
 
 ENTRYPOINT ["/server"]

@@ -15,6 +15,7 @@ import (
 	convexclient "github.com/collectiongeek/collectiongeek-app/backend/internal/convex"
 	"github.com/collectiongeek/collectiongeek-app/backend/internal/handlers"
 	"github.com/collectiongeek/collectiongeek-app/backend/internal/middleware"
+	"github.com/collectiongeek/collectiongeek-app/backend/internal/observability"
 	"github.com/collectiongeek/collectiongeek-app/backend/internal/version"
 )
 
@@ -56,6 +57,12 @@ func main() {
 	imagesH := handlers.NewImagesHandler(convex)
 
 	r := chi.NewRouter()
+
+	// Prometheus instrumentation. Registered before everything else so every
+	// request is measured, including ones rejected by auth or CORS.
+	buildInfo := version.Current()
+	metrics := observability.New(buildInfo.Version, buildInfo.Commit)
+	r.Use(metrics.Middleware)
 
 	// Global middleware.
 	r.Use(chimiddleware.Logger)
@@ -146,6 +153,19 @@ func main() {
 	if port == "" {
 		port = "8080"
 	}
+
+	// /metrics gets its own listener so Prometheus can scrape it in-cluster
+	// while the public Service/Ingress only ever exposes the app port.
+	metricsPort := os.Getenv("METRICS_PORT")
+	if metricsPort == "" {
+		metricsPort = "9090"
+	}
+	go func() {
+		log.Printf("Metrics listening on :%s", metricsPort)
+		if err := http.ListenAndServe(":"+metricsPort, metrics.Handler()); err != nil {
+			log.Printf("Metrics server stopped: %v", err)
+		}
+	}()
 
 	log.Printf("Backend starting on :%s", port)
 	log.Fatal(http.ListenAndServe(":"+port, r))
