@@ -9,8 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/httprc/v3"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 )
 
 type contextKey string
@@ -31,15 +32,29 @@ func NewJWKSMiddleware(ctx context.Context) (*JWKSMiddleware, error) {
 	}
 
 	jwksURL := fmt.Sprintf("https://api.workos.com/sso/jwks/%s", clientID)
-	cache := jwk.NewCache(ctx)
+	cache, err := jwk.NewCache(ctx, httprc.NewClient())
+	if err != nil {
+		return nil, fmt.Errorf("creating jwks cache: %w", err)
+	}
 
-	if err := cache.Register(jwksURL, jwk.WithMinRefreshInterval(15*time.Minute)); err != nil {
+	// WithWaitReady(false): by default Register blocks until the first
+	// successful fetch, with no timeout of its own — a WorkOS outage at boot
+	// would stall startup indefinitely (main.go passes context.Background()).
+	// Instead, register without waiting and do a bounded eager fetch below.
+	if err := cache.Register(ctx, jwksURL,
+		jwk.WithMinInterval(15*time.Minute),
+		jwk.WithWaitReady(false),
+	); err != nil {
 		return nil, fmt.Errorf("registering jwks cache: %w", err)
 	}
 
-	// Eager-fetch on startup so the first request doesn't block.
-	if _, err := cache.Refresh(ctx, jwksURL); err != nil {
-		// Non-fatal: log and continue — cache will retry on first request.
+	// Eager-fetch on startup so the first request doesn't block, bounded so
+	// a JWKS outage degrades gracefully (401s until the background refresh
+	// succeeds) instead of hanging boot.
+	refreshCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	if _, err := cache.Refresh(refreshCtx, jwksURL); err != nil {
+		// Non-fatal: log and continue — the cache retries in the background.
 		log.Printf("WARN: initial JWKS fetch failed: %v", err)
 	}
 
@@ -50,13 +65,21 @@ func (m *JWKSMiddleware) Authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token, err := m.extractAndValidate(r)
 		if err != nil {
-			log.Printf("auth: rejecting %s %s: %v", r.Method, r.URL.Path, err)
+			// %q on the path: it is attacker-controlled and could otherwise
+			// smuggle newlines into the log to forge entries.
+			log.Printf("auth: rejecting %s %q: %v", r.Method, r.URL.Path, err)
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 
 		// Store the WorkOS user ID (the JWT sub claim) in the request context.
-		ctx := context.WithValue(r.Context(), WorkOSUserIDKey, token.Subject())
+		sub, ok := token.Subject()
+		if !ok || sub == "" {
+			log.Printf("auth: rejecting %s %q: token has no sub claim", r.Method, r.URL.Path)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		ctx := context.WithValue(r.Context(), WorkOSUserIDKey, sub)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -68,7 +91,7 @@ func (m *JWKSMiddleware) extractAndValidate(r *http.Request) (jwt.Token, error) 
 	}
 	raw := strings.TrimPrefix(authHeader, "Bearer ")
 
-	keySet, err := m.cache.Get(r.Context(), m.jwksURL)
+	keySet, err := m.cache.Lookup(r.Context(), m.jwksURL)
 	if err != nil {
 		return nil, fmt.Errorf("fetching key set: %w", err)
 	}
