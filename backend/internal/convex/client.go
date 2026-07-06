@@ -46,6 +46,17 @@ type convexError struct {
 	Message string `json:"message"`
 }
 
+// truncateBody bounds an upstream response body for logs and error messages:
+// error payloads can echo request context, and unbounded fields bloat the
+// structured log stream.
+func truncateBody(b []byte) string {
+	const maxLoggedBody = 1024
+	if len(b) > maxLoggedBody {
+		return string(b[:maxLoggedBody]) + "...(truncated)"
+	}
+	return string(b)
+}
+
 // Mutation calls a Convex internal mutation and unmarshals the return value into result.
 func (c *Client) Mutation(ctx context.Context, path string, args any, result any) error {
 	body, err := json.Marshal(map[string]any{
@@ -77,8 +88,9 @@ func (c *Client) Mutation(ctx context.Context, path string, args any, result any
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		slog.Error("convex returned non-200", "path", path, "status", resp.StatusCode, "body", string(raw))
-		return fmt.Errorf("convex returned %d: %s", resp.StatusCode, string(raw))
+		body := truncateBody(raw)
+		slog.Error("convex returned non-200", "path", path, "status", resp.StatusCode, "body", body)
+		return fmt.Errorf("convex returned %d: %s", resp.StatusCode, body)
 	}
 
 	var out mutationResponse
