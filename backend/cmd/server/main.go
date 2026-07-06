@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 
@@ -29,23 +29,37 @@ func main() {
 		}
 	}
 
+	// Structured JSON logging (observability Phase 2). One JSON object per
+	// line on stdout; Loki stores it verbatim and LogQL parses it at query
+	// time. LOG_LEVEL=DEBUG enables the chatty per-call lines.
+	level := slog.LevelInfo
+	if v := os.Getenv("LOG_LEVEL"); v != "" {
+		if err := level.UnmarshalText([]byte(v)); err != nil {
+			level = slog.LevelInfo
+		}
+	}
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level})))
+
 	ctx := context.Background()
 
 	// Wire up the JWKS middleware (validates WorkOS JWTs).
 	jwksMW, err := middleware.NewJWKSMiddleware(ctx)
 	if err != nil {
-		log.Fatalf("Failed to initialize JWKS middleware: %v", err)
+		slog.Error("failed to initialize JWKS middleware", "error", err)
+		os.Exit(1)
 	}
 
 	// Wire up the Convex HTTP client (calls internal mutations).
 	convex, err := convexclient.NewClient()
 	if err != nil {
-		log.Fatalf("Failed to initialize Convex client: %v", err)
+		slog.Error("failed to initialize Convex client", "error", err)
+		os.Exit(1)
 	}
 
 	workosAPIKey := os.Getenv("WORKOS_API_KEY")
 	if workosAPIKey == "" {
-		log.Fatal("WORKOS_API_KEY is required")
+		slog.Error("WORKOS_API_KEY is required")
+		os.Exit(1)
 	}
 
 	// Route handlers.
@@ -64,10 +78,11 @@ func main() {
 	metrics := observability.New(buildInfo.Version, buildInfo.Commit)
 	r.Use(metrics.Middleware)
 
-	// Global middleware.
-	r.Use(chimiddleware.Logger)
-	r.Use(chimiddleware.Recoverer)
+	// Global middleware. RequestID must run before RequestLogger so the
+	// logged request_id is populated.
 	r.Use(chimiddleware.RequestID)
+	r.Use(middleware.RequestLogger)
+	r.Use(chimiddleware.Recoverer)
 
 	// CORS — allow the frontend origin.
 	allowedOrigins := []string{"http://localhost:3000"}
@@ -161,12 +176,15 @@ func main() {
 		metricsPort = "9090"
 	}
 	go func() {
-		log.Printf("Metrics listening on :%s", metricsPort)
+		slog.Info("metrics listening", "port", metricsPort)
 		if err := http.ListenAndServe(":"+metricsPort, metrics.Handler()); err != nil {
-			log.Printf("Metrics server stopped: %v", err)
+			slog.Error("metrics server stopped", "error", err)
 		}
 	}()
 
-	log.Printf("Backend starting on :%s", port)
-	log.Fatal(http.ListenAndServe(":"+port, r))
+	slog.Info("backend starting", "port", port, "version", buildInfo.Version, "commit", buildInfo.Commit)
+	if err := http.ListenAndServe(":"+port, r); err != nil {
+		slog.Error("server stopped", "error", err)
+		os.Exit(1)
+	}
 }

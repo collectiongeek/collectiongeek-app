@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
@@ -46,6 +46,17 @@ type convexError struct {
 	Message string `json:"message"`
 }
 
+// truncateBody bounds an upstream response body for logs and error messages:
+// error payloads can echo request context, and unbounded fields bloat the
+// structured log stream.
+func truncateBody(b []byte) string {
+	const maxLoggedBody = 1024
+	if len(b) > maxLoggedBody {
+		return string(b[:maxLoggedBody]) + "...(truncated)"
+	}
+	return string(b)
+}
+
 // Mutation calls a Convex internal mutation and unmarshals the return value into result.
 func (c *Client) Mutation(ctx context.Context, path string, args any, result any) error {
 	body, err := json.Marshal(map[string]any{
@@ -63,10 +74,10 @@ func (c *Client) Mutation(ctx context.Context, path string, args any, result any
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Convex "+c.deployKey)
 
-	log.Printf("[convex] calling %s %s", path, c.deployURL+"/api/mutation")
+	slog.Debug("convex call", "path", path, "url", c.deployURL+"/api/mutation")
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		log.Printf("[convex] request error for %s: %v", path, err)
+		slog.Error("convex request failed", "path", path, "error", err)
 		return fmt.Errorf("calling convex: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
@@ -77,8 +88,9 @@ func (c *Client) Mutation(ctx context.Context, path string, args any, result any
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		log.Printf("[convex] %s returned HTTP %d: %s", path, resp.StatusCode, string(raw))
-		return fmt.Errorf("convex returned %d: %s", resp.StatusCode, string(raw))
+		body := truncateBody(raw)
+		slog.Error("convex returned non-200", "path", path, "status", resp.StatusCode, "body", body)
+		return fmt.Errorf("convex returned %d: %s", resp.StatusCode, body)
 	}
 
 	var out mutationResponse
@@ -86,11 +98,11 @@ func (c *Client) Mutation(ctx context.Context, path string, args any, result any
 		return fmt.Errorf("unmarshaling response: %w", err)
 	}
 	if out.Error != nil {
-		log.Printf("[convex] %s error: %s", path, out.Error.Message)
+		slog.Error("convex mutation error", "path", path, "error", out.Error.Message)
 		return fmt.Errorf("convex mutation error: %s", out.Error.Message)
 	}
 	if out.ErrorMessage != "" {
-		log.Printf("[convex] %s error: %s", path, out.ErrorMessage)
+		slog.Error("convex mutation error", "path", path, "error", out.ErrorMessage)
 		return fmt.Errorf("convex mutation error: %s", out.ErrorMessage)
 	}
 
