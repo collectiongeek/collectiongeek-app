@@ -65,7 +65,9 @@ func (m *JWKSMiddleware) Authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token, err := m.extractAndValidate(r)
 		if err != nil {
-			log.Printf("auth: rejecting %s %s: %v", r.Method, r.URL.Path, err)
+			// %q on the path: it is attacker-controlled and could otherwise
+			// smuggle newlines into the log to forge entries.
+			log.Printf("auth: rejecting %s %q: %v", r.Method, r.URL.Path, err)
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -73,7 +75,7 @@ func (m *JWKSMiddleware) Authenticate(next http.Handler) http.Handler {
 		// Store the WorkOS user ID (the JWT sub claim) in the request context.
 		sub, ok := token.Subject()
 		if !ok || sub == "" {
-			log.Printf("auth: rejecting %s %s: token has no sub claim", r.Method, r.URL.Path)
+			log.Printf("auth: rejecting %s %q: token has no sub claim", r.Method, r.URL.Path)
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
