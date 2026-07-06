@@ -27,7 +27,7 @@ jobs:
       # in Settings → About line up to the second on every release.
       built_at: ${{ steps.builtat.outputs.built_at }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 2
       - uses: dorny/paths-filter@v4
@@ -59,7 +59,7 @@ jobs:
     outputs:
       image-tag: ${{ steps.short-sha.outputs.sha }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Get short SHA
         id: short-sha
@@ -148,7 +148,7 @@ jobs:
     outputs:
       image-tag: ${{ steps.short-sha.outputs.sha }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Get short SHA
         id: short-sha
@@ -227,7 +227,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout gitops-repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: ${{ env.GITOPS_REPO }}
           token: ${{ secrets.GITOPS_REPO_PAT }}
