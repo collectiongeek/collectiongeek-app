@@ -37,13 +37,24 @@ func NewJWKSMiddleware(ctx context.Context) (*JWKSMiddleware, error) {
 		return nil, fmt.Errorf("creating jwks cache: %w", err)
 	}
 
-	if err := cache.Register(ctx, jwksURL, jwk.WithMinInterval(15*time.Minute)); err != nil {
+	// WithWaitReady(false): by default Register blocks until the first
+	// successful fetch, with no timeout of its own — a WorkOS outage at boot
+	// would stall startup indefinitely (main.go passes context.Background()).
+	// Instead, register without waiting and do a bounded eager fetch below.
+	if err := cache.Register(ctx, jwksURL,
+		jwk.WithMinInterval(15*time.Minute),
+		jwk.WithWaitReady(false),
+	); err != nil {
 		return nil, fmt.Errorf("registering jwks cache: %w", err)
 	}
 
-	// Eager-fetch on startup so the first request doesn't block.
-	if _, err := cache.Refresh(ctx, jwksURL); err != nil {
-		// Non-fatal: log and continue — cache will retry on first request.
+	// Eager-fetch on startup so the first request doesn't block, bounded so
+	// a JWKS outage degrades gracefully (401s until the background refresh
+	// succeeds) instead of hanging boot.
+	refreshCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	if _, err := cache.Refresh(refreshCtx, jwksURL); err != nil {
+		// Non-fatal: log and continue — the cache retries in the background.
 		log.Printf("WARN: initial JWKS fetch failed: %v", err)
 	}
 
