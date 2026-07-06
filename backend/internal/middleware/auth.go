@@ -3,7 +3,7 @@ package middleware
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
@@ -55,7 +55,7 @@ func NewJWKSMiddleware(ctx context.Context) (*JWKSMiddleware, error) {
 	defer cancel()
 	if _, err := cache.Refresh(refreshCtx, jwksURL); err != nil {
 		// Non-fatal: log and continue — the cache retries in the background.
-		log.Printf("WARN: initial JWKS fetch failed: %v", err)
+		slog.Warn("initial JWKS fetch failed", "error", err)
 	}
 
 	return &JWKSMiddleware{cache: cache, jwksURL: jwksURL}, nil
@@ -65,9 +65,9 @@ func (m *JWKSMiddleware) Authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token, err := m.extractAndValidate(r)
 		if err != nil {
-			// %q on the path: it is attacker-controlled and could otherwise
-			// smuggle newlines into the log to forge entries.
-			log.Printf("auth: rejecting %s %q: %v", r.Method, r.URL.Path, err)
+			// The JSON handler escapes control characters in field values, so
+			// the attacker-controlled path cannot forge log entries here.
+			slog.Warn("rejecting request", "method", r.Method, "path", r.URL.Path, "error", err)
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -75,7 +75,7 @@ func (m *JWKSMiddleware) Authenticate(next http.Handler) http.Handler {
 		// Store the WorkOS user ID (the JWT sub claim) in the request context.
 		sub, ok := token.Subject()
 		if !ok || sub == "" {
-			log.Printf("auth: rejecting %s %q: token has no sub claim", r.Method, r.URL.Path)
+			slog.Warn("rejecting request: token has no sub claim", "method", r.Method, "path", r.URL.Path)
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
