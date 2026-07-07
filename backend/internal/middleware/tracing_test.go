@@ -47,6 +47,30 @@ func TestSpanRouteNameUsesRoutePattern(t *testing.T) {
 	}
 }
 
+func TestSpanRouteNameBoundsUnmatchedRoutes(t *testing.T) {
+	sr := withTestTracer(t)
+
+	r := chi.NewRouter()
+	r.Use(SpanRouteName)
+	r.Get("/api/v1/collections", func(w http.ResponseWriter, r *http.Request) {})
+	h := otelhttp.NewHandler(r, "http.server")
+
+	// Bot-probe paths must all collapse into one span name — scanning
+	// traffic must not be able to mint names.
+	h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest("GET", "/wp-admin.php", nil))
+	h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest("GET", "/.env", nil))
+
+	spans := sr.Ended()
+	if len(spans) != 2 {
+		t.Fatalf("got %d spans, want 2", len(spans))
+	}
+	for _, s := range spans {
+		if got, want := s.Name(), "GET unmatched"; got != want {
+			t.Errorf("span name = %q, want %q", got, want)
+		}
+	}
+}
+
 func TestRequestLoggerCarriesTraceID(t *testing.T) {
 	sr := withTestTracer(t)
 	buf := captureLogs(t)

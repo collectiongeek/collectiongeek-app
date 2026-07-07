@@ -17,9 +17,13 @@ func SpanRouteName(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		next.ServeHTTP(w, r)
 		if span := trace.SpanFromContext(r.Context()); span.IsRecording() {
-			if pattern := chi.RouteContext(r.Context()).RoutePattern(); pattern != "" {
-				span.SetName(r.Method + " " + pattern)
+			pattern := chi.RouteContext(r.Context()).RoutePattern()
+			if pattern == "" {
+				// No route matched (bot probes, typos): a fixed name, so
+				// scanning traffic can't mint span names either.
+				pattern = "unmatched"
 			}
+			span.SetName(r.Method + " " + pattern)
 		}
 	})
 }

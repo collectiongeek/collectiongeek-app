@@ -11,7 +11,10 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.34.0"
+	// Must match the semconv version the SDK's own detectors emit under
+	// (sdk@v1.44.0/resource pins v1.41.0) — resource.New errors on
+	// conflicting schema URLs, which would fail the boot path below.
+	semconv "go.opentelemetry.io/otel/semconv/v1.41.0"
 )
 
 // SetupTracing wires the global OpenTelemetry tracer provider (observability
@@ -34,9 +37,13 @@ func SetupTracing(ctx context.Context, version, commit string) (func(context.Con
 	}
 
 	res, err := resource.New(ctx,
+		resource.WithSchemaURL(semconv.SchemaURL),
 		// Merge OTEL_RESOURCE_ATTRIBUTES (e.g. deployment.environment.name,
 		// set per env in the backend chart values).
 		resource.WithFromEnv(),
+		resource.WithTelemetrySDK(), // telemetry.sdk.name/version
+		resource.WithHost(),         // host.name — the pod name, on K8s
+		resource.WithOS(),
 		resource.WithAttributes(
 			semconv.ServiceName("backend"),
 			semconv.ServiceVersion(version),
