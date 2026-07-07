@@ -11,6 +11,7 @@ import (
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/joho/godotenv"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	convexclient "github.com/collectiongeek/collectiongeek-app/backend/internal/convex"
 	"github.com/collectiongeek/collectiongeek-app/backend/internal/handlers"
@@ -41,6 +42,18 @@ func main() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level})))
 
 	ctx := context.Background()
+
+	// Tracing (observability Phase 3). Dormant unless the deployment sets
+	// OTEL_EXPORTER_OTLP_ENDPOINT — see internal/observability/tracing.go.
+	buildInfo := version.Current()
+	shutdownTracing, err := observability.SetupTracing(ctx, buildInfo.Version, buildInfo.Commit)
+	if err != nil {
+		slog.Error("failed to initialize tracing", "error", err)
+		os.Exit(1)
+	}
+	// Flush buffered spans on the way out. (The fatal paths below exit via
+	// os.Exit and skip this — acceptable: those happen before traffic.)
+	defer func() { _ = shutdownTracing(context.Background()) }()
 
 	// Wire up the JWKS middleware (validates WorkOS JWTs).
 	jwksMW, err := middleware.NewJWKSMiddleware(ctx)
@@ -74,12 +87,13 @@ func main() {
 
 	// Prometheus instrumentation. Registered before everything else so every
 	// request is measured, including ones rejected by auth or CORS.
-	buildInfo := version.Current()
 	metrics := observability.New(buildInfo.Version, buildInfo.Commit)
 	r.Use(metrics.Middleware)
 
 	// Global middleware. RequestID must run before RequestLogger so the
-	// logged request_id is populated.
+	// logged request_id is populated. SpanRouteName renames the otelhttp
+	// span (opened outside the router) to the chi route pattern.
+	r.Use(middleware.SpanRouteName)
 	r.Use(chimiddleware.RequestID)
 	r.Use(middleware.RequestLogger)
 	r.Use(chimiddleware.Recoverer)
@@ -183,7 +197,10 @@ func main() {
 	}()
 
 	slog.Info("backend starting", "port", port, "version", buildInfo.Version, "commit", buildInfo.Commit)
-	if err := http.ListenAndServe(":"+port, r); err != nil {
+	// otelhttp opens the request span and extracts any incoming traceparent.
+	// It wraps the whole router so even auth/CORS rejections are traced; when
+	// tracing is dormant the global provider is a no-op and this costs nothing.
+	if err := http.ListenAndServe(":"+port, otelhttp.NewHandler(r, "http.server")); err != nil {
 		slog.Error("server stopped", "error", err)
 		os.Exit(1)
 	}

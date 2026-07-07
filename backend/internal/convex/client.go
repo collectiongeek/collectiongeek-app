@@ -11,6 +11,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 // Client calls Convex internal mutations via the HTTP API using the deploy key.
@@ -30,9 +32,14 @@ func NewClient() (*Client, error) {
 		return nil, fmt.Errorf("CONVEX_DEPLOY_KEY is not set")
 	}
 	return &Client{
-		deployURL:  strings.TrimRight(deployURL, "/"),
-		deployKey:  deployKey,
-		httpClient: &http.Client{Timeout: 10 * time.Second},
+		deployURL: strings.TrimRight(deployURL, "/"),
+		deployKey: deployKey,
+		httpClient: &http.Client{
+			Timeout: 10 * time.Second,
+			// Child span per outbound call (Phase 3): the waterfall shows
+			// Convex time as its own bar. No-op when tracing is dormant.
+			Transport: otelhttp.NewTransport(http.DefaultTransport),
+		},
 	}, nil
 }
 
