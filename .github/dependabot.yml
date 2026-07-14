@@ -12,6 +12,10 @@ updates:
     groups:
       root-npm:
         patterns: ["*"]
+        # Majors arrive as INDIVIDUAL PRs instead — one incompatible major
+        # must not poison a whole group (PR #81: typescript 7 vs
+        # typescript-eslint's peer range broke a 15-package batch).
+        update-types: ["minor", "patch"]
 
   # Frontend (TypeScript/React/Vite)
   - package-ecosystem: npm
@@ -22,6 +26,15 @@ updates:
     groups:
       frontend-npm:
         patterns: ["*"]
+        # Majors arrive as INDIVIDUAL PRs instead — one incompatible major
+        # must not poison a whole group (PR #81: typescript 7 vs
+        # typescript-eslint's peer range broke a 15-package batch).
+        update-types: ["minor", "patch"]
+    ignore:
+      # TS 7 is blocked by typescript-eslint's peer range (ERESOLVE at npm
+      # ci). Remove this entry once typescript-eslint declares TS 7 support.
+      - dependency-name: typescript
+        versions: [">=7"]
 
   # Backend (Go / Chi)
   - package-ecosystem: gomod
@@ -32,6 +45,10 @@ updates:
     groups:
       backend-gomod:
         patterns: ["*"]
+        # Majors arrive as INDIVIDUAL PRs instead — one incompatible major
+        # must not poison a whole group (PR #81: typescript 7 vs
+        # typescript-eslint's peer range broke a 15-package batch).
+        update-types: ["minor", "patch"]
 
   # Dockerfiles (base image bumps)
   - package-ecosystem: docker
@@ -49,3 +66,7 @@ updates:
     groups:
       github-actions:
         patterns: ["*"]
+        # Majors arrive as INDIVIDUAL PRs instead — one incompatible major
+        # must not poison a whole group (PR #81: typescript 7 vs
+        # typescript-eslint's peer range broke a 15-package batch).
+        update-types: ["minor", "patch"]
