@@ -26,7 +26,10 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
     -o /server ./cmd/server
 
 # -- Runtime stage --
-FROM gcr.io/distroless/static-debian12
+# :nonroot pins a tag (no implicit :latest) and defaults the process to uid
+# 65532 — the same uid the chart's runAsUser enforces, so the image and the
+# deployment agree even if one of them is ever run without the other.
+FROM gcr.io/distroless/static-debian12:nonroot
 
 COPY --from=builder /server /server
 
