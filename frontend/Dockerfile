@@ -6,8 +6,10 @@ WORKDIR /workspace
 
 # Cache dependency downloads
 COPY frontend/package.json frontend/package-lock.json ./frontend/
-RUN cd frontend && npm ci && ln -s /workspace/frontend/node_modules /workspace/node_modules
+WORKDIR /workspace/frontend
+RUN npm ci && ln -s /workspace/frontend/node_modules /workspace/node_modules
 
+WORKDIR /workspace
 COPY frontend/ ./frontend/
 # The Convex sources are needed at build time: _generated/api.d.ts re-imports them
 # (e.g. `import type * as assets from "../assets.js"`) so TypeScript can infer
@@ -22,7 +24,8 @@ ARG COMMIT=unknown
 ARG BUILT_AT=unknown
 ENV APP_VERSION=${VERSION} APP_COMMIT=${COMMIT} APP_BUILT_AT=${BUILT_AT}
 
-RUN cd frontend && npm run build
+WORKDIR /workspace/frontend
+RUN npm run build
 
 # -- Runtime stage --
 # The UNPRIVILEGED variant: master process runs as uid 101 (not root),
