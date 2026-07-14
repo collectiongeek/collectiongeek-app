@@ -13,13 +13,13 @@
     "scan:trivy": "bash scripts/security-scan.sh trivy"
   },
   "dependencies": {
-    "convex": "^1.42.1"
+    "convex": "^1.42.2"
   },
   "overrides": {
     "ws": "^8.20.1"
   },
   "devDependencies": {
-    "@types/node": "^26.1.0",
+    "@types/node": "^26.1.1",
     "typescript": "^6.0.3"
   }
 }
