@@ -33,6 +33,10 @@ FROM gcr.io/distroless/static-debian12:nonroot
 
 COPY --from=builder /server /server
 
+# The base already defaults to this user; declaring it makes the intent
+# visible to static Dockerfile scanners (Trivy DS-0002) and to readers.
+USER nonroot
+
 # 8080 = API, 9090 = Prometheus /metrics (cluster-internal only)
 EXPOSE 8080 9090
 
