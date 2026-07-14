@@ -20,15 +20,19 @@ export API_ORIGIN
 
 # Render the nginx config from its template. The single-quoted variable list
 # tells envsubst to substitute only ${API_ORIGIN} — nginx's own $variables
-# (e.g. $request_uri, $uri) pass through untouched.
+# (e.g. $request_uri, $uri) pass through untouched. conf.d is a writable
+# emptyDir in Kubernetes (the root filesystem is read-only).
 envsubst '${API_ORIGIN}' \
-  < /etc/nginx/conf.d/default.conf.template \
+  < /etc/nginx/templates/default.conf.template \
   > /etc/nginx/conf.d/default.conf
 
 # Write runtime config from environment variables into a JS file loaded before
 # the app bundle. This keeps the Docker image environment-agnostic — the same
 # image runs in test and production; only the K8s ConfigMap differs.
-cat > /usr/share/nginx/html/config.js <<EOF
+# Under /tmp (the other writable mount), NOT the read-only html root —
+# nginx serves it from there via the "location = /config.js" alias.
+mkdir -p /tmp/runtime
+cat > /tmp/runtime/config.js <<EOF
 window.__CG_CONFIG__ = {
   apiBaseUrl: "${API_BASE_URL}",
   workosClientId: "${WORKOS_CLIENT_ID}",

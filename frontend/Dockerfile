@@ -25,8 +25,16 @@ ENV APP_VERSION=${VERSION} APP_COMMIT=${COMMIT} APP_BUILT_AT=${BUILT_AT}
 RUN cd frontend && npm run build
 
 # -- Runtime stage --
-FROM nginx:alpine
+# The UNPRIVILEGED variant: master process runs as uid 101 (not root),
+# listens on 8080 (no privileged port), pid + temp files live under /tmp.
+# That is what lets the chart run this container with runAsNonRoot, a
+# read-only root filesystem and every capability dropped.
+FROM nginxinc/nginx-unprivileged:alpine
 
+# Root for the package upgrade and file installs (root-owned, world-readable
+# is exactly right: the runtime user can read, nothing can tamper); the USER
+# below drops back to the image's unprivileged account for runtime.
+USER root
 RUN apk upgrade --no-cache
 
 COPY --from=builder /workspace/frontend/dist /usr/share/nginx/html
@@ -38,9 +46,14 @@ RUN chmod +x /docker-entrypoint.sh
 # header comment in that file for what each directive protects.
 # Copied as a .template — docker-entrypoint.sh renders it via envsubst at
 # container start so connect-src can be templated from $API_BASE_URL.
-COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf.template
+# NOT under /etc/nginx/conf.d: in Kubernetes that directory is an emptyDir
+# mount (the rendered config's writable home), which would shadow anything
+# the image put there.
+COPY frontend/nginx.conf /etc/nginx/templates/default.conf.template
 
-EXPOSE 80
+USER nginx
+
+EXPOSE 8080
 
 # Renders nginx.conf from the template, writes /config.js from env vars,
 # then starts Nginx.
