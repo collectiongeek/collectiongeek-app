@@ -13,7 +13,7 @@
     "scan:trivy": "bash scripts/security-scan.sh trivy"
   },
   "dependencies": {
-    "convex": "^1.42.2"
+    "convex": "^1.42.3"
   },
   "overrides": {
     "ws": "^8.20.1"
