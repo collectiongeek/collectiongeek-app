@@ -28,6 +28,11 @@ jobs:
             frontend:
               - 'frontend/**'
               - 'convex/**'
+              # Root package files pin the toolchain the "Typecheck Convex"
+              # step runs with (typescript, @types/node, convex) — a bump
+              # there must not skip the typecheck (seen with TS 7, PR #92).
+              - 'package.json'
+              - 'package-lock.json'
 
   # ---------------------------------------------------------
   # Backend: Go lint + test
