@@ -28,7 +28,7 @@
     "lucide-react": "^1.24.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "react-dropzone": "^17.0.0",
+    "react-dropzone": "^19.1.1",
     "react-easy-crop": "^6.2.2",
     "react-router-dom": "^7.18.1",
     "sonner": "^2.0.3",
