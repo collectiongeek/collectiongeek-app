@@ -1,5 +1,9 @@
 # -- Build stage --
-FROM golang:1.26-alpine AS builder
+# Patch version pinned, not just the minor: go1.26.4 carries a reachable
+# crypto/tls flaw (GO-2026-5856) and a symlink escape in os (GO-2026-4970),
+# both fixed in 1.26.5. A floating :1.26 tag would pick the fix up eventually,
+# but nothing forces the rebuild — so state the version we mean.
+FROM golang:1.26.5-alpine AS builder
 
 WORKDIR /app
 
