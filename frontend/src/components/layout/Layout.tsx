@@ -1,4 +1,4 @@
-import { Link, NavLink, Outlet } from "react-router-dom";
+import { Link, NavLink, Outlet } from "react-router";
 import { useAuth } from "@workos-inc/authkit-react";
 import { useQuery } from "convex/react";
 import { api } from "@convex-gen/api";

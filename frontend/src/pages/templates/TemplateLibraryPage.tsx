@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { useQuery } from "convex/react";
 import { api } from "@convex-gen/api";
 import type { Doc } from "@convex-gen/dataModel";
