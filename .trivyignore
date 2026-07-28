@@ -1,3 +1,29 @@
 # Add accepted vulnerability IDs here, one per line.
 # Example:
 # CVE-2023-44487
+
+# ---------------------------------------------------------------------------
+# DS-0026 — "Add HEALTHCHECK instruction in your Dockerfile" (LOW, misconfig)
+#
+# Accepted for both backend/Dockerfile and frontend/Dockerfile.
+#
+# Why: a Docker HEALTHCHECK is dead weight in these images. The kubelet never
+# reads it — health checking for these pods is owned by the liveness and
+# readiness probes defined in the charts (collectiongeek-gitops,
+# charts/backend and charts/frontend). Worse, the backend runtime stage is
+# gcr.io/distroless/static-debian12:nonroot, which ships no shell and no
+# curl/wget, so there is literally nothing for a HEALTHCHECK to exec short of
+# building a health subcommand into the Go binary purely to satisfy a static
+# scanner.
+#
+# Why here rather than dismissing in the GitHub UI: a UI dismissal is keyed to
+# the alert's fingerprint, which includes surrounding file content. Alerts #7
+# (backend) and #15 (frontend) were both dismissed "won't fix" on 2026-07-14
+# with this same reasoning — then #100 added the Go 1.26.5 pin comment to
+# backend/Dockerfile, the fingerprint moved, and the finding came straight back
+# as a brand-new alert #46. An ignorefile entry is keyed to the rule ID, so it
+# survives edits to the files it covers.
+#
+# Revisit if either image is ever run outside Kubernetes (plain `docker run`,
+# Compose, ECS), where the runtime *does* act on HEALTHCHECK.
+DS-0026
