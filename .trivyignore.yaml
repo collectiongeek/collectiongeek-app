@@ -1,0 +1,50 @@
+# Accepted Trivy findings.
+#
+# YAML rather than the plain-text .trivyignore because this format supports
+# `paths`, which scopes an accepted finding to the files it was actually
+# reasoned about. A bare ID in .trivyignore is repo-wide: it would also
+# silence the same rule on a Dockerfile nobody has reviewed yet.
+#
+# Trivy does NOT auto-detect this filename — it only looks for `.trivyignore`
+# by default. Both callers pass it explicitly:
+#   - .github/workflows/security.yml  (TRIVY_IGNOREFILE env)
+#   - scripts/security-scan.sh        (--ignorefile)
+# Only one ignorefile is ever read, so every accepted finding belongs here.
+#
+# Sections: `vulnerabilities`, `misconfigurations`, `secrets`, `licenses`.
+# Each entry takes `id`, optional `paths`, optional `statement` (the reason),
+# and optional `expired_at` (YYYY-MM-DD) for a time-boxed acceptance.
+
+misconfigurations:
+  # "Add HEALTHCHECK instruction in your Dockerfile" (LOW).
+  #
+  # A Docker HEALTHCHECK is dead weight in these two images. The kubelet
+  # never reads it — health checking for these pods is owned by the
+  # liveness/readiness probes in the charts (collectiongeek-gitops,
+  # charts/backend and charts/frontend). And the backend runtime stage is
+  # gcr.io/distroless/static-debian12:nonroot, which ships no shell and no
+  # curl/wget, so there is nothing for a HEALTHCHECK to exec short of
+  # building a health subcommand into the Go binary purely to satisfy a
+  # static scanner.
+  #
+  # Recorded here rather than dismissed in the GitHub UI because a UI
+  # dismissal is keyed to the alert fingerprint, which includes surrounding
+  # file content. Alerts #7 (backend) and #15 (frontend) were both dismissed
+  # "won't fix" on 2026-07-14 with this same reasoning; #100 then added the
+  # Go 1.26.5 pin comment to backend/Dockerfile, the fingerprint moved, and
+  # the finding returned as a new alert #46. An ignorefile entry keys off the
+  # rule ID, so it survives edits to the files it covers.
+  #
+  # Scoped to these two paths deliberately: a third Dockerfile added later
+  # may not be Kubernetes-deployed, and should be flagged so someone makes
+  # this call again. Revisit these two if either image is ever run outside
+  # Kubernetes (plain `docker run`, Compose, ECS), where the runtime does
+  # act on HEALTHCHECK.
+  - id: DS-0026
+    paths:
+      - "backend/Dockerfile"
+      - "frontend/Dockerfile"
+    statement: >-
+      Kubernetes ignores Docker HEALTHCHECK; the charts' liveness/readiness
+      probes own health checking. The backend's distroless runtime also has
+      no shell to exec one.

@@ -1,6 +1,9 @@
 import { StrictMode, useCallback } from "react";
 import { createRoot } from "react-dom/client";
-import { RouterProvider } from "react-router-dom";
+// From react-router/dom, not react-router: both entry points export a
+// RouterProvider, but only the DOM one wires up flushSync for form/fetcher
+// navigations. react-router-dom used to re-export this one for us.
+import { RouterProvider } from "react-router/dom";
 import { ConvexProviderWithAuth, ConvexReactClient } from "convex/react";
 import { AuthKitProvider, useAuth } from "@workos-inc/authkit-react";
 import { router } from "./router";

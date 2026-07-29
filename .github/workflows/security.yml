@@ -131,11 +131,14 @@ jobs:
           output: trivy.sarif
           exit-code: "0" # report-only
           ignore-unfixed: true
-          # Honors the repo's existing .trivyignore for accepted findings.
         env:
           # Pin the vuln/policy DBs' source registries (defaults shown) so a
           # registry move doesn't silently break the scan.
           TRIVY_DB_REPOSITORY: mirror.gcr.io/aquasec/trivy-db,ghcr.io/aquasecurity/trivy-db
+          # Accepted findings live in .trivyignore.yaml — the YAML format so
+          # entries can be scoped to specific paths. Trivy only auto-detects
+          # the plain-text `.trivyignore`, so the filename must be explicit.
+          TRIVY_IGNOREFILE: .trivyignore.yaml
 
       - name: Upload Trivy SARIF
         if: always()

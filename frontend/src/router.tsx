@@ -5,7 +5,7 @@
  * change usually wants a full reload, not a hot-swap.
  */
 import { lazy, Suspense } from "react";
-import { createBrowserRouter, Outlet } from "react-router-dom";
+import { createBrowserRouter, Outlet } from "react-router";
 import { ChunkErrorBoundary } from "@/components/layout/ChunkErrorBoundary";
 import { Layout } from "@/components/layout/Layout";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";

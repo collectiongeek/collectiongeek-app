@@ -81,7 +81,7 @@ export default defineConfig({
         manualChunks(id) {
           if (!id.includes("node_modules")) return;
           if (id.includes("/react/") || id.includes("/react-dom/")) return "vendor-react";
-          if (id.includes("/react-router-dom/") || id.includes("/react-router/")) return "vendor-router";
+          if (id.includes("/react-router/")) return "vendor-router";
           if (id.includes("/@radix-ui/")) return "vendor-radix";
           if (id.includes("/lucide-react/")) return "vendor-icons";
           if (id.includes("/sonner/")) return "vendor-toast";

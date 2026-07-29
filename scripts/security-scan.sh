@@ -58,9 +58,15 @@ run_trivy() {
     return 1
   fi
   echo "==> Running Trivy (deps / secrets / misconfig)"
+  # --ignorefile is both required and load-bearing: Trivy only auto-detects a
+  # plain-text `.trivyignore`, and it resolves that relative to the working
+  # directory — which for this script is wherever you happened to invoke it
+  # from, not the repo root. Spelling out an absolute path keeps local runs
+  # honoring the same accepted findings as CI.
   trivy fs \
     --scanners vuln,secret,misconfig \
     --ignore-unfixed \
+    --ignorefile "${REPO_ROOT}/.trivyignore.yaml" \
     "${REPO_ROOT}"
 }
 
