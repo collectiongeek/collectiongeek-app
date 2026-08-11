@@ -12,9 +12,9 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	// Must match the semconv version the SDK's own detectors emit under
-	// (sdk@v1.44.0/resource pins v1.41.0) — resource.New errors on
+	// (sdk@v1.45.0/resource pins v1.43.0) — resource.New errors on
 	// conflicting schema URLs, which would fail the boot path below.
-	semconv "go.opentelemetry.io/otel/semconv/v1.41.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
 )
 
 // SetupTracing wires the global OpenTelemetry tracer provider (observability
